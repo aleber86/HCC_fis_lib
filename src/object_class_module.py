@@ -2,13 +2,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 
-"""
-CALCULAR LAS COLOSIONES CON METODO DE MONTE CARLO
-LAS DISTANCIAS ENTRE LOS OBJETOS Y LAS DIRECCIONES
-DE SUS CARAS SUPERFICIALES NOS DAN UNA ESTIMACION
-DE LA POSICION DEL OBJETO EN EL ESPACIO
-"""
-
 class Particle:
     def __init__(self, mass : float, init_pos : list or np.array = [0., 0., 0.],
                  init_vel : list or np.array = [0., 0., 0.],
@@ -153,16 +146,8 @@ class Body:
 
     def set_vertex_position(self, position_of_vertex : np.array):
         self.global_vertex = position_of_vertex
-    """
-    def __local_to_global_vertex(self):
-        center_of_figure, angular_deviation = self.position
-        global_vertex_coordinates_rot = np.apply_along_axis(self.__vector_rotation, 1, self.local_vertex,
-                                                            angular_deviation, np.zeros(center_of_figure.shape))
 
-        global_vertex_coordinates = np.apply_along_axis(lambda x : x+center_of_figure, 1, global_vertex_coordinates_rot)
-        return global_vertex_coordinates
-    """
-    def __vector_rotation(self, vector_to_rotate, angular_deviation, origin):
+    def _vector_rotation(self, vector_to_rotate, angular_deviation, origin):
         """Rotation matrix = R_z(alpha)*R_y(beta)*R_x(gamma) | RotMat * VECTOR"""
 
         gamma, beta, alpha = angular_deviation
@@ -196,7 +181,7 @@ class Body:
         else:
             origin = axis
 
-        vertex_update_position = np.apply_along_axis(self.__vector_rotation, 1, self.local_vertex,
+        vertex_update_position = np.apply_along_axis(self._vector_rotation, 1, self.local_vertex,
                                                      angular_update_direction, origin )
 
         vertex_update_position = np.array(vertex_update_position+center_update_position)
@@ -218,12 +203,18 @@ class Body:
         return  edges
 
     def vector_surface(self):
+        """Method of abstract class Body not defined. Every child class must overload
+        the operator"""
+        pass
+
+    def collision_detect(self, other = None):
+        """Method of abstract class Body not defined. Every child class must overload
+        the operator"""
         pass
 
     def update(self, delta_time : float):
         delta_time = self._wp(delta_time)
         self.__vertex_position(delta_time)
-        #self.define_axial_vectors()
         edge = self.edges_change()
         self.set_edges(edge)
         self.vector_surface()
@@ -232,25 +223,42 @@ class Body:
 
 class Plane(Body):
     """Primitive mesh body. Child of Body class."""
-    def __init__(self, size, mass, friction, init_pos, init_vel, init_rot, destructive, _wp = np.float64):
+    def __init__(self, size, mass,  friction, init_pos, init_vel, init_rot, destructive,
+                 vertex = [[1.,1.,0.], [-1.,1.,0.], [-1.,-1.,0.], [1.,-1.,0]],
+                 edges_ind  = [(0,1), (1,2), (2,3), (3,0)],_wp = np.float64):
+
         self.size = size
-        vertex = np.array([[1.,1.,0.], [-1.,1.,0.], [-1.,-1.,0.], [1.,-1.,0]], dtype = _wp) * size/2.0
-        edges_indexes  = np.array([(0,1), (1,2), (2,3), (3,0)], dtype = np.int32)
-        Body.__init__(self, mass, vertex, friction, init_pos, init_vel, init_rot, destructive, edges_indexes)
+        edges_indexes = np.array(edges_ind, dtype = np.int32)
+        vertex_array = np.array(vertex, dtype = _wp) * size/2.0
+        Body.__init__(self, mass, vertex_array, friction, init_pos, init_vel, init_rot, destructive, edges_indexes)
+        self.sides = None
         self.vector_surface()
 
     def vector_surface(self):
-        """Surface vectors are reffered to global system. It will auto-rotate
-           Body class method OVERLOADED
+        """Surface vectors (versor) are reffered to global system. It will auto-rotate
+           Body class method OVERLOADED.
+           Sets sides of the plane
         """
-        vertex_on_global = self.get_vertex_position()
-        side_a = vertex_on_global[self.edges_indexes[0][1]] - vertex_on_global[self.edges_indexes[0][0]]
-        side_b = vertex_on_global[self.edges_indexes[1][1]] - vertex_on_global[self.edges_indexes[1][0]]
-        self.surface_vector = np.cross(side_a, side_b)
+        vertex_on_global = self.get_vertex_position() #Vertex on global system
+        self.sides = np.array([vertex_on_global[self.edges_indexes[index][1]] - vertex_on_global[self.edges_indexes[index][0]]
+                               for index, _ in enumerate(self.edges_indexes)])
+
+        vector_cross_product = np.cross(self.sides[0], self.sides[1])
+        self.surface_vector = vector_cross_product / np.sqrt(np.dot(vector_cross_product, vector_cross_product))
 
 
     def get_surface_vectors(self):
         return self.surface_vector
+
+    def collision_detect(self, other_object_face = None):
+        self.__random_points_on_surface()
+
+    def __random_points_on_surface(self, quant = 1000):
+        pos, ang = self.get_position()
+        #self._vector_rotation()
+        random_points = np.array([self.local_vertex*np.random.random() for _ in np.arange(quant)])
+        random_points_global = random_points - pos
+
 
 class Cube(Body):
     """Primitive mesh body. Child of Body class."""
@@ -268,7 +276,6 @@ class Cube(Body):
 
 
     def get_surface_vectors(self):
-
         return self.surface_vector
 
     def vector_surface(self):
@@ -342,26 +349,9 @@ def render(objects_array):
     plt.show()
 
 if __name__ == '__main__':
-    """
-    cube_vertex = np.array([[1., 1., 1.], [-1.,1.,1.],
-                   [1., -1., 1.], [-1., -1., 1.], [1.,-1.,-1.],
-                   [1.,1.,-1.], [-1.,1.,-1.], [-1., -1., -1.]], dtype = np.float64)
-    edges = np.array([(0,1),
-                      (0,2),
-                      (1,3),
-                      (2,3),
-                      (0,5),
-                      (1,6),
-                      (2,4),
-                      (3,7),
-                      (5,4),
-                      (5,6),
-                      (4,7),
-                      (6,7)], dtype = np.int32)
-    """
 
-    cube = Cube(5.0, 1.0, 0.0, [[0.,0.,2.], [0.,0.,0.]], [0.,0.,0.,], [0.,10.,10], False )
-    plane = Plane(8., 1., 0., [[0,0,0], [0,1,0]], [0,0,0], [0,0,0], False )
+    cube = Cube(5.0, 1.0, 0.0, [[0.,0.,0.], [0.,0.,0.]], [0.,0.,0.,], [1.,1.,0], False )
+    plane = Plane(1., 1., 0., [[0,0,0], [0,0,0]], [0,0,0], [1,0,0], False )
     objects = np.array([cube, plane])
     for _ in range(100):
         #print(f"center position / angles: {cube.get_position()} \n")
@@ -369,11 +359,12 @@ if __name__ == '__main__':
         #print(f"edge_position : {cube.get_edges()} \n")
         #print(f"LOCAL VERTEX: \n {cube.local_vertex} \n")
         #print(f"GLOBAL VERTEX: \n {cube.get_vertex_position()}\n")
-        anim = render(objects)
+        #anim = render(objects)
         for obj in objects:
             obj.update(0.1)
             if isinstance(obj, Cube):
                 obj.update_cube_faces(0.1)
+            print(obj.get_surface_vectors())
                 #print(obj.get_surface_vectors())
         #render(plane.get_vertex_position(), plane.get_edges())
         #plane.update(0.1)
