@@ -1,2 +1,4 @@
 #Compiled
 *__pycache__
+*.png
+sphere.py
