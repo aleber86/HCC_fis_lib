@@ -220,12 +220,29 @@ class Body:
         edges = np.apply_along_axis(self.__define_edges, 1, self.edges_indexes)
         return  edges
 
+    def get_surface_vectors(self):
+        return self.surface_vector
+
     def vector_surface(self):
         """Method of Body not defined. Every child class must overload
         the operator"""
         pass
     def collision_detect(self, other):
-        pass
+        face_vector_surface_this_object = self.get_surface_vectors()
+        face_vector_surface_other_object = other.get_surface_vectors()
+        relative_direction_this_object = other.get_position()[0] - self.get_position()[0]
+        relative_direction_other_object = - relative_direction_this_object
+        index_of_this = np.empty((1,), dtype = np.int32)
+        index_of_other = np.empty((1,), dtype = np.int32)
+        for index, vector in enumerate(face_vector_surface_this_object):
+            if np.dot(vector, relative_direction_this_object)>=0:
+                index_of_this = np.append(index_of_this,np.array([index], dtype=np.int32))
+        for index, vector in enumerate(face_vector_surface_other_object):
+            if np.dot(vector, relative_direction_other_object)>=0:
+                index_of_other = np.append(index_of_other, np.array([index], dtype = np.int32))
+
+
+        #print(index_of_this, index_of_other)
 
     def collision_box(self):
         return self.hit_box_global
