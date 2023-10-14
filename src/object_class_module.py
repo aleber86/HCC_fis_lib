@@ -53,6 +53,8 @@ def render(objects_array, name):
 #    plt.savefig(f"tmp/image{name}.png")
 
 if __name__ == '__main__':
+    import time
+    np.random.seed(123)
     objects = np.array([Cilinder(np.random.randint(1,3),
                       np.random.randint(1,5),
                       np.random.randint(5, 10),
@@ -69,13 +71,25 @@ if __name__ == '__main__':
                         np.random.uniform(-10,10)],
                       [np.random.uniform(-10,10),
                         np.random.uniform(-10,10),
-                        np.random.uniform(-10,10)], False) for _ in np.arange(5)])
+                        np.random.uniform(-10,10)], False) for _ in np.arange(2)])
     #plane = Plane(1, 1, 0, [[-10,0,0], [0,0,0]], [0,0,1], [0,0,1], False)
     #plane = Sphere(1.0,4,1,1,0, [[0,0,0], [0,0,0]], [2,0,0], [0,2,2], False)
     #plane = Cube(1,1,0,[[ -10, 6, 0],[3,4,1]], [1,1,1], [-3,-2,-1], False)
-    for i in range(100):
+    start_time = time.perf_counter()
+    counter = 1
+    for i in range(1000):
         #print(objects[0].get_surface_vectors())
-        render(objects, i)
-        print(f"Frame {i+1} Calculated")
-        objects[0].update(0.1)
+ #       render(objects, i)
+        if time.perf_counter() - start_time >=1:
+            print(f"Frames / sec {counter} Calculated")
+            start_time = time.perf_counter()
+            counter = 0
+        else:
+            counter +=1
+
+
+        np.array([objects[i].collision_detect(objects[j])
+                  for i in np.arange(len(objects)-1)
+                  for j in np.arange(i+1)] )
+        np.array([obj.update(0.1) for obj in objects])
             #print(obj.get_surface_vectors())
