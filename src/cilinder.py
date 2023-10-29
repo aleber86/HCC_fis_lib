@@ -65,6 +65,7 @@ class Cilinder(Body):
                                      for i in [-1,1]], dtype=Plane)
         self.faces = np.append(self.faces, top_bottom, axis=0)
 
+
     def __vertex_to_object__index_edges(self ):
         """
         Adds vertex and edges from the faces to the Object (Cilinder or child)
@@ -77,10 +78,15 @@ class Cilinder(Body):
             #len(edges) defines the offset of indexing
             edges = np.vstack((edges, face.get_edges_index()+len(edges)))
         return vertex, edges
-
+    """
     def update_faces(self, time):
-        np.array([face.update(time) for face in self.faces])
-
+        offset = 0
+        for index,face in enumerate(self.faces):
+            vertex_len = len(face.get_vertex_position())
+            self.faces[index].set_vertex_position(self.global_vertex[offset:offset+vertex_len])
+            self.faces[index].vector_surface()
+            offset += vertex_len
+    """
 
     def get_surface_vectors(self):
         return self.surface_vector

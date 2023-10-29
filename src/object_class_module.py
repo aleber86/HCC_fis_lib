@@ -3,7 +3,6 @@ from matplotlib import pyplot as plt
 from cube import Cube, Prisma
 from plane import Plane
 from cilinder import Cilinder
-from sphere import Sphere
 
 
 
@@ -25,6 +24,7 @@ def render(objects_array, name):
         vertex_array = obj.get_vertex_position()
         edge_array = obj.get_edges()
         hit_box = obj.collision_box()
+        faces = obj.faces
 #        scat = obj.array_point
         for point in vertex_array:
             x,y,z = point
@@ -38,6 +38,14 @@ def render(objects_array, name):
         for point in hit_box:
             x,y,z = point
             ax.scatter(x,y,z, c='red', marker='o', s=10)
+        for face in faces:
+            pos = [0,0,0]
+            fpos, _ = face.get_position()
+            x = [pos[0],fpos[0]]
+            y = [pos[1],fpos[1]]
+            z = [pos[2],fpos[2]]
+            ax.scatter(x,y,z, c='green', s=5)
+            ax.plot(x,y,z, color='green')
     """
         for point in scat:
             x,y,z = point
@@ -55,6 +63,7 @@ def render(objects_array, name):
 if __name__ == '__main__':
     import time
     np.random.seed(123)
+    """
     objects = np.array([Cilinder(np.random.randint(1,3),
                       np.random.randint(1,5),
                       np.random.randint(5, 10),
@@ -72,24 +81,24 @@ if __name__ == '__main__':
                       [np.random.uniform(-10,10),
                         np.random.uniform(-10,10),
                         np.random.uniform(-10,10)], False) for _ in np.arange(2)])
+    """
+
+    objects = np.array([Cilinder(1,2,8,1,1,[[0,0,11*i], [0,0,0]],[0,0,0],[i,i,i], False) for i in np.arange(2)])
     #plane = Plane(1, 1, 0, [[-10,0,0], [0,0,0]], [0,0,1], [0,0,1], False)
-    #plane = Sphere(1.0,4,1,1,0, [[0,0,0], [0,0,0]], [2,0,0], [0,2,2], False)
     #plane = Cube(1,1,0,[[ -10, 6, 0],[3,4,1]], [1,1,1], [-3,-2,-1], False)
     start_time = time.perf_counter()
     counter = 1
     for i in range(1000):
         #print(objects[0].get_surface_vectors())
- #       render(objects, i)
+        #render(objects, i)
         if time.perf_counter() - start_time >=1:
             print(f"Frames / sec {counter} Calculated")
             start_time = time.perf_counter()
             counter = 0
         else:
             counter +=1
-
-
+        #print(np.array([obj.get_surface_vectors() for obj in objects]))
         np.array([objects[i].collision_detect(objects[j])
                   for i in np.arange(len(objects)-1)
-                  for j in np.arange(i+1)] )
+                  for j in np.arange(i+1, len(objects))] )
         np.array([obj.update(0.1) for obj in objects])
-            #print(obj.get_surface_vectors())
