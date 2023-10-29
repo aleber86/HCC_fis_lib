@@ -41,7 +41,8 @@ class Plane(Body):
            Sets sides of the plane
         """
         vertex_on_global = self.get_vertex_position() #Vertex on global system
-        self.sides = np.array([vertex_on_global[self.edges_indexes[index][1]] - vertex_on_global[self.edges_indexes[index][0]]
+        self.sides = np.array([vertex_on_global[self.edges_indexes[index][1]]
+                               - vertex_on_global[self.edges_indexes[index][0]]
                                for index, _ in enumerate(self.edges_indexes)])
 
         vector_cross_product = np.cross(-self.sides[0], self.sides[1])
@@ -51,10 +52,11 @@ class Plane(Body):
     def get_surface_vectors(self):
         return self.surface_vector
 
-    def collision_detect(self, other_object_face = None):
+    def ray_trace(self, other_object_face = None):
         self.__random_points_on_surface()
 
     def __random_points_on_surface(self, quant = 1000):
         pos, _ = self.get_position()
-        random_points_global = random_points + pos
+        versors = self.get_surface_vectors()
+
 

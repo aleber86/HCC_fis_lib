@@ -16,11 +16,11 @@ class Body:
     [[v_1, v_2], [v_1, v_3], ...., [v_i, v_k]]
     _wp : working precision
     """
-    scale_hit_box_global = 1.2
+    _tolerance = 1.e-14
     def __init__(self, mass : float, vertex, friction : float,
                   init_pos : list or np.array, init_vel : list or np.array,
                   init_rot : list or np.array, destructive : bool,
-                  edges_indexes, _wp = np.float64 ):
+                  edges_indexes, _wp = np.float64):
         self._wp = _wp
         self.mass = _wp(mass)
         self.friction = _wp(friction)
@@ -44,9 +44,16 @@ class Body:
         self.state = True
         self.surface_vector = None
         self.change_variable_state = True
+        self._tolerance = _wp(self._tolerance)
 
-    def update_faces(self, delta_t):
-        pass
+    def update_faces(self):
+        if self.faces is not None:
+            offset = 0
+            for index,face in enumerate(self.faces):
+                vertex_len = len(face.get_vertex_position())
+                self.faces[index].set_vertex_position(self.global_vertex[offset:offset+vertex_len])
+                self.faces[index].vector_surface()
+                offset += vertex_len
 
     def change_status(self, variable_change, variable_to_change):
         """It determines if phase state variables change. If not
@@ -54,7 +61,7 @@ class Body:
         usage"""
 
         state = np.sum(np.abs(variable_change - variable_to_change))
-        if state > self._wp(1.e-17):
+        if state > self._tolerance:
             self.change_variable_state = True
         else:
             self.change_variable_state = False
@@ -206,6 +213,7 @@ class Body:
         hit_box_update_position = np.array(hit_box_update_position+center_update_position)
         self.hit_box_global = hit_box_update_position
 
+
     def __change_by_time(self, change_argument, change_rate, delta_time):
         """Change on phase space"""
         changed_argument = change_argument + change_rate * delta_time
@@ -227,22 +235,41 @@ class Body:
         """Method of Body not defined. Every child class must overload
         the operator"""
         pass
+
     def collision_detect(self, other):
+        """Two step detection function.
+        First detection: function test collision_box overlap. If true,
+        second detection: collision test using a Monte Carlo method.
+        """
+        this_position, other_position =  self.get_position()[0], other.get_position()[0]
         face_vector_surface_this_object = self.get_surface_vectors()
         face_vector_surface_other_object = other.get_surface_vectors()
-        relative_direction_this_object = other.get_position()[0] - self.get_position()[0]
+        relative_direction_this_object = other_position - this_position
         relative_direction_other_object = - relative_direction_this_object
-        index_of_this = np.empty((1,), dtype = np.int32)
-        index_of_other = np.empty((1,), dtype = np.int32)
-        for index, vector in enumerate(face_vector_surface_this_object):
-            if np.dot(vector, relative_direction_this_object)>=0:
-                index_of_this = np.append(index_of_this,np.array([index], dtype=np.int32))
-        for index, vector in enumerate(face_vector_surface_other_object):
-            if np.dot(vector, relative_direction_other_object)>=0:
-                index_of_other = np.append(index_of_other, np.array([index], dtype = np.int32))
+        #Returns mask for the face_vector_surface:
+        mask_of_this = np.apply_along_axis(self.__direction,1, face_vector_surface_this_object,
+                            relative_direction_this_object)
 
+        mask_of_other = np.apply_along_axis(self.__direction,1, face_vector_surface_other_object,
+                            relative_direction_other_object)
 
-        #print(index_of_this, index_of_other)
+        #face_to_collide_this = face_vector_surface_this_object[mask_of_this]
+        #face_to_collide_other = face_vector_surface_other_object[mask_of_other]
+        #print(face_to_collide_this)
+        #print(face_to_collide_other)
+        #print(mask_of_this, mask_of_other)
+        #print(face_vector_surface_other_object)
+        #print(face_vector_surface_this_object)
+
+    def __direction(self, face_vector, vector_to_proyect):
+        """Test if vector_surface could collide using dot product.
+        A · B = |A||B| Cos(b). If A · B >= 0, then collision could occurre"""
+
+        condition = False
+        if np.dot(face_vector, vector_to_proyect)>self._tolerance:
+            #print(np.dot(face_vector, vector_to_proyect ))
+            condition = True
+        return condition
 
     def collision_box(self):
         return self.hit_box_global
@@ -275,6 +302,5 @@ class Body:
             self.__vertex_position(delta_time)
             edge = self.edges_change()
             self.set_edges(edge)
+            self.update_faces()
             self.vector_surface()
-            self.update_faces(delta_time)
-
