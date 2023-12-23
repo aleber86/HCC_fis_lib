@@ -1,4 +1,7 @@
 #Compiled
 *__pycache__
 *.png
+*.dat
+*.gp
+vector_3D.py
 sphere.py
