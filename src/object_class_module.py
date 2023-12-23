@@ -1,8 +1,10 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from body import Body
 from cube import Cube, Prisma
 from plane import Plane
 from cilinder import Cilinder
+from particle import Particle
 
 
 
@@ -21,36 +23,30 @@ def render(objects_array, name):
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     for obj in objects_array:
-        vertex_array = obj.get_vertex_position()
-        edge_array = obj.get_edges()
-        hit_box = obj.collision_box()
-        faces = obj.faces
-#        scat = obj.array_point
-        for point in vertex_array:
-            x,y,z = point
-            ax.scatter(x,y,z, c='blue', marker='o', s=10)
-        for edge in edge_array:
-            x = [edge[0][0],edge[1][0]]
-            y = [edge[0][1],edge[1][1]]
-            z = [edge[0][2],edge[1][2]]
-            ax.scatter(x,y,z, c='black', s=5)
-            ax.plot(x,y,z, color='black')
-        for point in hit_box:
-            x,y,z = point
-            ax.scatter(x,y,z, c='red', marker='o', s=10)
-        for face in faces:
-            pos = [0,0,0]
-            fpos, _ = face.get_position()
-            x = [pos[0],fpos[0]]
-            y = [pos[1],fpos[1]]
-            z = [pos[2],fpos[2]]
-            ax.scatter(x,y,z, c='green', s=5)
-            ax.plot(x,y,z, color='green')
-    """
-        for point in scat:
-            x,y,z = point
-            ax.scatter(x,y,z, c='green', marker='o', s=10)
-    """
+        if isinstance(obj, Body):
+            vertex_array = obj.get_vertex_position()
+            edge_array = obj.get_edges()
+            hit_box = obj.collision_box()
+            for point in vertex_array:
+                x,y,z = point
+                ax.scatter(x,y,z, c='blue', marker='o', s=10)
+            for edge in edge_array:
+                x = [edge[0][0],edge[1][0]]
+                y = [edge[0][1],edge[1][1]]
+                z = [edge[0][2],edge[1][2]]
+                ax.scatter(x,y,z, c='black', s=5)
+                ax.plot(x,y,z, color='black')
+            for point in hit_box:
+                x,y,z = point
+                ax.scatter(x,y,z, c='red', marker='o', s=10)
+        elif isinstance(obj, Particle):
+            x,y,z = obj.get_position()
+            ax.scatter(x,y,z, c='b', marker='x', s=5)
+            hit_box = obj.collision_box()
+            for point in hit_box:
+                x,y,z = point
+                ax.scatter(x,y,z, c='red', marker='o', s=10)
+
     ax.scatter([0,1], [0,0], [0,0], c='blue', s=5)
     ax.plot([0,1], [0,0], [0,0], c='blue')
     ax.scatter([0,0], [0,1], [0,0], c='red', s=5)
@@ -62,43 +58,39 @@ def render(objects_array, name):
 
 if __name__ == '__main__':
     import time
-    np.random.seed(123)
+    box_limit = 0.5*np.array([1,1,1])
+    np.random.seed(1235048800)
     """
-    objects = np.array([Cilinder(np.random.randint(1,3),
-                      np.random.randint(1,5),
-                      np.random.randint(5, 10),
-                      0.,
-                      False,
-                      [[np.random.uniform(-10,10),
-                        np.random.uniform(-10,10),
-                        np.random.uniform(-10,10)],
-                        [np.random.uniform(-10,10),
-                        np.random.uniform(-10,10),
-                        np.random.uniform(-10,10)]],
-                      [np.random.uniform(-10,10),
-                        np.random.uniform(-10,10),
-                        np.random.uniform(-10,10)],
-                      [np.random.uniform(-10,10),
-                        np.random.uniform(-10,10),
-                        np.random.uniform(-10,10)], False) for _ in np.arange(2)])
+    objects = np.array([Particle(np.random.uniform(0.1,5),
+                                 [np.random.uniform(-0.1,0.1),
+                                  np.random.uniform(-0.1,0.1),
+                                  np.random.uniform(-00.1,0.01)],
+                                 [np.random.uniform(-10,10),
+                                  np.random.uniform(-10,10),
+                                  np.random.uniform(-10,10)]) for _ in np.arange(70)])
     """
-
-    objects = np.array([Cilinder(1,2,8,1,1,[[0,0,11*i], [0,0,0]],[0,0,0],[i,i,i], False) for i in np.arange(2)])
-    #plane = Plane(1, 1, 0, [[-10,0,0], [0,0,0]], [0,0,1], [0,0,1], False)
-    #plane = Cube(1,1,0,[[ -10, 6, 0],[3,4,1]], [1,1,1], [-3,-2,-1], False)
+    objects = np.array([Prisma(1,2,1,0,[[0,0,0],[0,0,0]], [1,0,0],[0,1,1], False)])
     start_time = time.perf_counter()
     counter = 1
-    for i in range(1000):
-        #print(objects[0].get_surface_vectors())
-        #render(objects, i)
-        if time.perf_counter() - start_time >=1:
-            print(f"Frames / sec {counter} Calculated")
-            start_time = time.perf_counter()
-            counter = 0
-        else:
-            counter +=1
-        #print(np.array([obj.get_surface_vectors() for obj in objects]))
-        np.array([objects[i].collision_detect(objects[j])
-                  for i in np.arange(len(objects)-1)
-                  for j in np.arange(i+1, len(objects))] )
-        np.array([obj.update(0.1) for obj in objects])
+    with open("data_set.dat", "w") as file_out:
+        for i in range(1000):
+            if time.perf_counter() - start_time >=1:
+                print(f"Frames / sec {counter} Calculated")
+                start_time = time.perf_counter()
+                counter = 0
+            else:
+                counter +=1
+            coll = np.array([obj.collision_detect(oth) for obj in objects for oth in objects if obj != oth])
+            tot_coll = np.sum(coll)
+            if tot_coll != 0: print(tot_coll)
+
+            if i%10 == 0:
+                render(objects, i)
+                """
+                arr = np.matrix(objects[0].get_position())
+                for obj in objects:
+                    arr = np.vstack((arr,obj.get_position()))
+                np.savetxt(file_out, arr)
+                file_out.write(2*'\n')
+                """
+            np.array([obj.update(0.1) for obj in objects])

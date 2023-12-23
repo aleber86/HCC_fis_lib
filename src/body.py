@@ -1,4 +1,5 @@
 import numpy as np
+from particle import Particle
 
 class Body:
     r"""Class of 3D objects (mesh only).
@@ -53,7 +54,11 @@ class Body:
                 vertex_len = len(face.get_vertex_position())
                 self.faces[index].set_vertex_position(self.global_vertex[offset:offset+vertex_len])
                 self.faces[index].vector_surface()
+                _,rot = self.faces[index].get_position()
+                self.faces[index].set_position(np.array([self.global_vertex[offset]
+                                                - self.faces[index].get_vertex_position_local()[0], rot], dtype = self._wp))
                 offset += vertex_len
+
 
     def change_status(self, variable_change, variable_to_change):
         """It determines if phase state variables change. If not
@@ -239,35 +244,53 @@ class Body:
     def collision_detect(self, other):
         """Two step detection function.
         First detection: function test collision_box overlap. If true,
-        second detection: collision test using a Monte Carlo method.
+        second detection: collision test using faces.
         """
-        this_position, other_position =  self.get_position()[0], other.get_position()[0]
-        face_vector_surface_this_object = self.get_surface_vectors()
-        face_vector_surface_other_object = other.get_surface_vectors()
+        if isinstance(other, Body):
+            this_position, other_position =  self.get_position()[0], other.get_position()[0]
+        else:
+            this_position, other_position = self.get_position()[0], other.get_position()
         relative_direction_this_object = other_position - this_position
-        relative_direction_other_object = - relative_direction_this_object
-        #Returns mask for the face_vector_surface:
-        mask_of_this = np.apply_along_axis(self.__direction,1, face_vector_surface_this_object,
-                            relative_direction_this_object)
+        #Collision box test:
 
-        mask_of_other = np.apply_along_axis(self.__direction,1, face_vector_surface_other_object,
-                            relative_direction_other_object)
+        this_collision_box_global = self.collision_box()
+        other_collision_box_global = other.collision_box()
+        difference_collision_box_global = np.array([this_collision_box_global[i]-other_collision_box_global[i]
+                                                    for i in np.arange(len(other_collision_box_global)) ])
+        overlap = np.apply_along_axis(self.__direction, 1, difference_collision_box_global,
+                                      relative_direction_this_object)
+        overlap_result = np.sum(overlap)
 
-        #face_to_collide_this = face_vector_surface_this_object[mask_of_this]
-        #face_to_collide_other = face_vector_surface_other_object[mask_of_other]
-        #print(face_to_collide_this)
-        #print(face_to_collide_other)
-        #print(mask_of_this, mask_of_other)
-        #print(face_vector_surface_other_object)
-        #print(face_vector_surface_this_object)
+        #If collision box overlaps
+        #and if `other` is is instance of `Body`:
+        if overlap_result!= 0 and isinstance(other, Body):
+            print("BODY-BODY COLLISION")
+            face_vector_surface_this_object = self.get_surface_vectors()
+            face_vector_surface_other_object = other.get_surface_vectors()
+            relative_direction_other_object = - relative_direction_this_object
+            #Returns mask for the face_vector_surface:
+            mask_of_this = np.apply_along_axis(self.__direction,1, face_vector_surface_this_object,
+                                relative_direction_this_object)
+
+            mask_of_other = np.apply_along_axis(self.__direction,1, face_vector_surface_other_object,
+                                relative_direction_other_object)
+
+            face_to_collide_this = self.faces[mask_of_this]
+            face_to_collide_other = other.faces[mask_of_other]
+            #np.array([print(faces.get_vertex_position()) for faces in face_to_collide_this])
+            #np.array([print(faces.get_vertex_position()) for faces in face_to_collide_other])
+            #print(face_to_collide_other)
+            #print(mask_of_this, mask_of_other)
+            #print(face_vector_surface_other_object)
+            #print(face_vector_surface_this_object)
+        elif overlap_result!= 0 and isinstance(other, Particle):
+            print("PARTICLE - BODY COLLISION")
 
     def __direction(self, face_vector, vector_to_proyect):
-        """Test if vector_surface could collide using dot product.
-        A · B = |A||B| Cos(b). If A · B >= 0, then collision could occurre"""
-
+        """A · B = |A||B| Cos(b). If A · B >= 0, then collision could occurre"""
+        condition = False
         condition = False
         if np.dot(face_vector, vector_to_proyect)>self._tolerance:
-            #print(np.dot(face_vector, vector_to_proyect ))
             condition = True
         return condition
 
@@ -279,8 +302,7 @@ class Body:
         max_x = np.max(self.local_vertex[:,0])
         max_y = np.max(self.local_vertex[:,1])
         max_z = np.max(self.local_vertex[:,2])
-        offset = (np.abs(max_x) + np.abs(max_y) + np.abs(max_y))/3 * 0.05
-        max_x += offset
+        offset = (np.abs(max_x) + np.abs(max_y) + np.abs(max_z))/3 * 0.5
         max_y += offset
         max_z += offset
         min_x = np.min(self.local_vertex[:,0]) - offset
@@ -302,5 +324,6 @@ class Body:
             self.__vertex_position(delta_time)
             edge = self.edges_change()
             self.set_edges(edge)
-            self.update_faces()
             self.vector_surface()
+            self.update_faces()
+

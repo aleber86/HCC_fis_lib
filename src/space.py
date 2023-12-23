@@ -1,5 +1,7 @@
 import numpy as np
-from object_class_module import Particle, Cube, Plane, render
+from object_class_module import render
+from body import Body
+from particle import Particle
 from scipy.integrate import odeint
 
 class Space:
@@ -17,6 +19,7 @@ class Space:
         self.object_subscribed = np.array([])
         self.time = init_time
         self.air = _wp(air_res)
+        self.size_shepre_space = 1.e-1
         self._wp = _wp
 
     def subscribe_objects_into_space(self, object_to_subscribe):
@@ -46,74 +49,17 @@ class Space:
     def get_objects_in_space(self):
         return self.object_subscribed
 
-    def get_object_telemetry(self):
-        """Function returns time step and position/velocity of every subscribed object"""
-        telemetry = np.array([])
-        for obj in self.object_subscribed:
-            if telemetry.size > 0:
-                first = np.hstack((np.array([self.time]), np.append(obj.get_position(), obj.get_linear_velocity())))
-                telemetry = np.vstack((telemetry,first))
-            else:
-                telemetry = np.hstack((np.array([self.time]), np.append(obj.get_position(), obj.get_linear_velocity())))
 
-        return telemetry
-
-    def update(self, time):
-        """Updates time, position and velocity for every object using odeint from Scipy. Time span is
-        calculated with numpy linspace 10 elements, odeint calculates the interval and takes the last element
-        to set new state for every object subscribed. If an element state is False then it will be unsuscribed."""
-        self.equation_of_mov(time)
-        for obj in self.object_subscribed:
-            obj.update(time)
-        self.time = time
-
-    def equation_of_mov(self, time):
-        step_back_time = self.time
-        t = np.linspace(step_back_time, time, 10)
-        for index, obj in enumerate(self.object_subscribed):
-            pos, ang = obj.get_position()
-            vel = obj.get_linear_velocity()
-            ext_force = 0.0
-            argument = np.append(pos, vel)
-            friction = obj.get_friction()
-            resul = odeint(self.__interacion_in_space, argument, t, args = (ext_force,self.air, self.gravity, obj.get_mass()))
-            if(resul[-1][2]<1.e-2):
-                #self.object_subscribed[index].set_state(True)
-                velocity_invertion = np.array([1.,1.,-friction], dtype=self._wp)
-                position_invertion = np.array([1.,1.,0.], dtype=self._wp)
-            else:
-                velocity_invertion = np.ones((3,), dtype=self._wp)
-                position_invertion = np.ones((3,), dtype = self._wp)
-            #self.object_subscribed[index].set_position([resul[-1][:3].copy()*position_invertion,ang])
-            self.object_subscribed[index].set_linear_velocity(resul[-1][3:].copy()*velocity_invertion+ext_force)
-
-    def __interacion_in_space(self, pos_vel, y, ext_force, air, grav, mass):
-        """
-        Differential equation system.
-        Degrees of freedom : 3
-        Fluid resistance : Yes
-        Gravity : Yes
-
-        Movement of particles using a diff. eq. expressed by:
-
-        \ddot{X} - K/m \dot{X}^2 - g = 0
-
-        K : Air resistance coef.
-        m : Mass of the particles
-        g : Gravity
-
-        """
-        position = pos_vel[:3].copy()
-        velocity = pos_vel[3:].copy()
-        if position[2]>0.:
-            dvelocity = - np.array([0.,0.,grav])
-        else:
-            dvelocity = np.zeros((3,))
-            velocity = dvelocity
-
-        dydt = np.append(velocity, dvelocity)
-
-        return dydt
+    def box_limit(self):
+        for object_x in self.object_subscribed:
+            object_x_position = object_x.get_position()
+            radius = np.sqrt(np.dot(object_x_position, object_x_position))
+            if radius >= self.size_shepre_space:
+                vel = object_x.get_velocity()
+                object_x.set_velocity(-vel)
+                if radius>0:
+                    new_pos = object_x_position / radius * self.size_shepre_space *0.99999
+                    object_x.set_position(new_pos)
 
     def __str__(self):
         """Prints every attribute of Space class"""
@@ -124,28 +70,84 @@ class Space:
         print(self.__dict__)
         return string
 
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
+    def collision_detect(self, first, second, radius = 1.e-5):
+        if isinstance(first, Particle) and isinstance(second, Particle):
+            sphere_first = first.get_position()
+            sphere_second = second.get_position()
+            radial_sep = sphere_second - sphere_first
+            radial_distance = np.sqrt(np.dot(radial_sep, radial_sep))
+            if radial_distance <= radius:
+#                print("PARTICLE-PARTICLE COLLISION")
+                self.momentum_collision_partice_particle(first, second)
+                return True
+            else:
+                return False
 
-    space_instance = Space()
-    cube = Cube(1,1,0,[[0,0,20],[0,0,0]], [0,0,0], [0,0,0], False)
-    plane = Plane(7, 1e6, 10, [[0,0,0],[0,0,0]], [0,0,0], [0,0,0], False)
-    """
-    particles = [Particle(np.random.randint(1,50),
-                         8*np.ones((3,), dtype= np.float64),
-                         2*np.ones((3,), dtype=np.float64))
 
-                 for i in np.arange(10)]
-
-    space_instance.subscribe_objects_into_space(particles)
-    """
-    space_instance.subscribe_objects_into_space(cube)
-    space_instance.subscribe_objects_into_space(plane)
-    to_print_z = np.array([])
-    to_print_z_v = np.array([])
-    for time_advance in np.arange(0,10):
-        space_instance.update(0.1)
-        render(space_instance.get_objects_in_space())
-        telemetry = space_instance.get_object_telemetry()
-        if telemetry.size>0:
+        elif ((isinstance(first, Particle) and isinstance(second, Body)) |
+              (isinstance(second, Particle) and isinstance(first, Body))):
             pass
+        elif isinstance(first, Body) and isinstance(second, Body):
+            pass
+
+
+    def momentum_collision_partice_particle(self, first, second):
+        """ELASTIC COLLISION"""
+        first_velocity = first.get_velocity()
+        second_velocity = second.get_velocity()
+        first_mass = first.get_mass()
+        second_mass = second.get_mass()
+
+        first_new_velocity = (first_velocity*(first_mass-second_mass) +
+                             2.*second_velocity*second_mass)/(first_mass+second_mass)
+
+        second_new_velocity = (second_velocity*(second_mass-first_mass) +
+                              2.*first_velocity*first_mass)/(first_mass + first_mass)
+
+        first.set_velocity(first_new_velocity)
+        second.set_velocity(second_new_velocity)
+
+    def update(self, time):
+        """Updates time, position and velocity for every object using odeint from Scipy. Time span is
+        calculated with numpy linspace 10 elements, odeint calculates the interval and takes the last element
+        to set new state for every object subscribed. If an element state is False then it will be unsuscribed."""
+
+        collision = np.array([self.collision_detect(obj, sec)
+                      for index,obj in enumerate(self.object_subscribed)
+                      for sec in self.object_subscribed[index:]
+                      if obj!= sec])
+
+        np.array([obj.update() for obj in self.object_subscribed])
+        np.array([obj.set_position(obj.get_position()+time*obj.get_velocity()) for obj in self.object_subscribed])
+        self.box_limit()
+        self.time = time
+        total_collision = np.sum(collision)
+        return total_collision
+
+if __name__ == '__main__':
+    np.random.seed(456791)
+    dim = 1000
+    space_instance = Space()
+    particles = [Particle((i+1),
+                         [np.random.uniform(-.005,.005),
+                          np.random.uniform(-.005,.005),
+                          np.random.uniform(-.005,.005)],
+                         [np.random.uniform(-.01,.01),
+                          np.random.uniform(-.01,.01),
+                          np.random.uniform(-.01,.01)]
+                          )
+                 for i in np.arange(dim)]
+    space_instance.subscribe_objects_into_space(particles)
+    step = 0.1
+    condition = True
+    time_start = 0.0
+    counter = 0
+    total_energy = np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
+    while condition:
+        time_start += step
+        collision = space_instance.update(step)
+        if collision>0:
+            k=np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
+            print(f"Step: {counter}, total time: {time_start}, Collisions: {collision} ")
+            print(f"Total Energy: {total_energy} *** Actual Energy State: {k}")
+        counter+=1
