@@ -19,7 +19,7 @@ class Space:
         self.object_subscribed = np.array([])
         self.time = init_time
         self.air = _wp(air_res)
-        self.size_shepre_space = 1.e-1
+        self.size_shepre_space = 1.e10
         self._wp = _wp
 
     def subscribe_objects_into_space(self, object_to_subscribe):
@@ -97,13 +97,21 @@ class Space:
         second_velocity = second.get_velocity()
         first_mass = first.get_mass()
         second_mass = second.get_mass()
+        system_mass = first_mass + second_mass
+
+        v_cm = (first_velocity*first_mass + second_velocity*second_mass)/system_mass
+
+        first_velocity = first_velocity - v_cm
+        second_velocity = second_velocity - v_cm
 
         first_new_velocity = (first_velocity*(first_mass-second_mass) +
-                             2.*second_velocity*second_mass)/(first_mass+second_mass)
+                             2.*second_velocity*second_mass)/system_mass
 
         second_new_velocity = (second_velocity*(second_mass-first_mass) +
-                              2.*first_velocity*first_mass)/(first_mass + first_mass)
+                              2.*first_velocity*first_mass)/system_mass
 
+        first_new_velocity = first_new_velocity + v_cm
+        second_new_velocity = second_new_velocity + v_cm
         first.set_velocity(first_new_velocity)
         second.set_velocity(second_new_velocity)
 
@@ -119,7 +127,7 @@ class Space:
 
         np.array([obj.update() for obj in self.object_subscribed])
         np.array([obj.set_position(obj.get_position()+time*obj.get_velocity()) for obj in self.object_subscribed])
-        self.box_limit()
+        #self.box_limit()
         self.time = time
         total_collision = np.sum(collision)
         return total_collision
@@ -129,12 +137,12 @@ if __name__ == '__main__':
     dim = 1000
     space_instance = Space()
     particles = [Particle((i+1),
-                         [np.random.uniform(-.005,.005),
-                          np.random.uniform(-.005,.005),
-                          np.random.uniform(-.005,.005)],
-                         [np.random.uniform(-.01,.01),
-                          np.random.uniform(-.01,.01),
-                          np.random.uniform(-.01,.01)]
+                         [np.random.uniform(0,0),
+                          np.random.uniform(0,0),
+                          np.random.uniform(-.5,.5)],
+                         [np.random.uniform(0,0),
+                          np.random.uniform(0,0),
+                          np.random.uniform(-1,1)]
                           )
                  for i in np.arange(dim)]
     space_instance.subscribe_objects_into_space(particles)
@@ -142,6 +150,7 @@ if __name__ == '__main__':
     condition = True
     time_start = 0.0
     counter = 0
+    collision = 0
     total_energy = np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
     while condition:
         time_start += step
@@ -150,4 +159,4 @@ if __name__ == '__main__':
             k=np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
             print(f"Step: {counter}, total time: {time_start}, Collisions: {collision} ")
             print(f"Total Energy: {total_energy} *** Actual Energy State: {k}")
-        counter+=1
+            counter+=1
