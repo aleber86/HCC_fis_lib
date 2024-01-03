@@ -60,7 +60,6 @@ if __name__ == '__main__':
     import time
     box_limit = 0.5*np.array([1,1,1])
     np.random.seed(1235048800)
-    """
     objects = np.array([Particle(np.random.uniform(0.1,5),
                                  [np.random.uniform(-0.1,0.1),
                                   np.random.uniform(-0.1,0.1),
@@ -68,29 +67,30 @@ if __name__ == '__main__':
                                  [np.random.uniform(-10,10),
                                   np.random.uniform(-10,10),
                                   np.random.uniform(-10,10)]) for _ in np.arange(70)])
-    """
-    objects = np.array([Prisma(1,2,1,0,[0,0,0],[0,0,0], [1,0,0],[0,1,1], False)])
+#    objects = np.array([Cilinder(1,3,8,1,0,[0,0,0], [0,0,0], [0,0,0], [0,0,0], destructive=False)])
     start_time = time.perf_counter()
     counter = 1
-    with open("data_set.dat", "w") as file_out:
-        for i in range(1000):
-            if time.perf_counter() - start_time >=1:
-                print(f"Frames / sec {counter} Calculated")
-                start_time = time.perf_counter()
-                counter = 0
-            else:
-                counter +=1
-            coll = np.array([obj.collision_detect(oth) for obj in objects for oth in objects if obj != oth])
-            tot_coll = np.sum(coll)
-            if tot_coll != 0: print(tot_coll)
+#    with open("data_set.dat", "w") as file_out:
+    for i in range(1000):
+        if time.perf_counter() - start_time >=1:
+            print(f"Frames / sec {counter} Calculated")
+            start_time = time.perf_counter()
+            counter = 0
+        else:
+            counter +=1
+        coll = np.array([obj.collision_detect(oth) for obj in objects for oth in objects if obj != oth])
+        tot_coll = np.sum(coll)
+        if tot_coll != 0: print(tot_coll)
 
-            if i%10 == 0:
-                render(objects, i)
-                """
-                arr = np.matrix(objects[0].get_position())
-                for obj in objects:
-                    arr = np.vstack((arr,obj.get_position()))
-                np.savetxt(file_out, arr)
-                file_out.write(2*'\n')
-                """
-            np.array([obj.update(0.1) for obj in objects])
+        if i%10 == 0:
+            pass
+            #render(objects, i)
+            """
+            arr = np.matrix(objects[0].get_position())
+            for obj in objects:
+                arr = np.vstack((arr,obj.get_position()))
+            np.savetxt(file_out, arr)
+            file_out.write(2*'\n')
+            """
+        np.array([obj.update(0.1) for obj in objects])
+        #print(objects[0].get_angular_position())

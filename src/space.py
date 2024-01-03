@@ -2,6 +2,7 @@ import numpy as np
 from object_class_module import render
 from body import Body
 from particle import Particle
+from cube import Cube
 from scipy.integrate import odeint
 
 class Space:
@@ -71,6 +72,7 @@ class Space:
         return string
 
     def collision_detect(self, first, second, radius = 1.e-5):
+        collision = False
         if isinstance(first, Particle) and isinstance(second, Particle):
             sphere_first = first.get_position()
             sphere_second = second.get_position()
@@ -79,18 +81,41 @@ class Space:
             if radial_distance <= radius:
 #                print("PARTICLE-PARTICLE COLLISION")
                 self.momentum_collision_partice_particle(first, second)
-                return True
-            else:
-                return False
+                collision = True
 
 
         elif ((isinstance(first, Particle) and isinstance(second, Body)) |
               (isinstance(second, Particle) and isinstance(first, Body))):
-            pass
+            if isinstance(first, Particle):
+                particle_instance = first
+                body_instance = second
+            else:
+                particle_instance = second
+                body_instance = first
+            if self.overlap_box(body_instance, particle_instance):
+              #  print("BODY - PARTICLE COLLISION")
+
+                collision = True
         elif isinstance(first, Body) and isinstance(second, Body):
-            pass
+            if self.overlap_box(first, second):
+                #print("BODY-BODY COLLISION")
+                collision = True
+        return collision
+    def overlap_box(self, this, other):
+        this_position = this.get_position()
+        other_position = other.get_position()
+        relative_direction_this_object = other_position - this_position
+        #Collision box test:
 
+        this_collision_box_global = this.collision_box()
+        other_collision_box_global = other.collision_box()
+        difference_collision_box_global = np.array([this_collision_box_global[i]-other_collision_box_global[i]
+                                                    for i in np.arange(len(other_collision_box_global)) ])
+        overlap = np.apply_along_axis(this._direction, 1, difference_collision_box_global,
+                                      relative_direction_this_object)
+        overlap_result = np.sum(overlap)
 
+        return bool(overlap_result)
     def momentum_collision_partice_particle(self, first, second):
         """ELASTIC COLLISION"""
         first_velocity = first.get_velocity()
@@ -125,7 +150,7 @@ class Space:
                       for sec in self.object_subscribed[index:]
                       if obj!= sec])
 
-        np.array([obj.update() for obj in self.object_subscribed])
+        np.array([obj.update(time) for obj in self.object_subscribed])
         np.array([obj.set_position(obj.get_position()+time*obj.get_velocity()) for obj in self.object_subscribed])
         #self.box_limit()
         self.time = time
@@ -134,7 +159,7 @@ class Space:
 
 if __name__ == '__main__':
     np.random.seed(456791)
-    dim = 1000
+    dim = 10
     space_instance = Space()
     particles = [Particle((i+1),
                          [np.random.uniform(0,0),
@@ -145,6 +170,7 @@ if __name__ == '__main__':
                           np.random.uniform(-1,1)]
                           )
                  for i in np.arange(dim)]
+    particles.append(Cube(1,1,1,[0,0,0],[0,0,0],[0,0,0],[0,0,0], False))
     space_instance.subscribe_objects_into_space(particles)
     step = 0.1
     condition = True

@@ -11,6 +11,7 @@ class Cilinder(Body):
         Creates 3D mesh of regular body, Cilinder and other regular bodys
         Construct the object using the number of faces and mesurements
         """
+        self.change_variable_state = True
         self.radius = radius
         self.height = height
         self.number_of_lateral_faces = num_lat_faces
