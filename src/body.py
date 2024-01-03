@@ -71,8 +71,6 @@ class Body:
         state = np.sum(np.abs(variable_change - variable_to_change))
         if state > self._tolerance:
             self.change_variable_state = True
-        else:
-            self.change_variable_state = False
 
     def volume_calc(self, samples_quant = 5000):
         """Function implemented by Monte Carlo simulation as in CAD systems
@@ -156,6 +154,7 @@ class Body:
         self.axial_vectors_to_faces = vectors_to_center
 
     def set_angular_position(self, angular_position : np.array):
+        self.change_status(angular_position, self.angular_position)
         self.angular_position = angular_position
 
     def set_edges(self, edg):
@@ -165,11 +164,11 @@ class Body:
         self.inertia_tensor = inertia_tensor
 
     def set_linear_velocity(self, velocity):
-        self.change_status(velocity, self.linear_velocity)
+        #self.change_status(velocity, self.linear_velocity)
         self.linear_velocity = velocity
 
     def set_position(self, position):
-        self.change_status(position, self.position)
+        #self.change_status(position, self.position)
         self.position = position
 
     def set_rotation_velocity(self, rotation):
@@ -203,7 +202,6 @@ class Body:
         """Updates center position and vertex position on global system
             If axis = None, the body rotates over an axis thus it center (not the mass center,
             body defined center by instant position)"""
-
         delta_time = self._wp(delta_time)
         linear_velocity = self.get_velocity()
         rotational_velocity = self.get_rotation_velocity()
@@ -215,19 +213,20 @@ class Body:
             origin = np.zeros(center_position.shape)
         else:
             origin = axis
+        if self.change_variable_state:
+            vertex_update_position = np.apply_along_axis(self._vector_rotation, 1, self.local_vertex,
+                                                         angular_update_direction, origin )
+            vertex_update_position = np.array(vertex_update_position+center_update_position)
+            self.set_vertex_position(vertex_update_position)
+            hit_box_update_position = np.apply_along_axis(self._vector_rotation, 1, self.hit_box_local,
+                                                         angular_update_direction, origin )
 
-        vertex_update_position = np.apply_along_axis(self._vector_rotation, 1, self.local_vertex,
-                                                     angular_update_direction, origin )
-        vertex_update_position = np.array(vertex_update_position+center_update_position)
+            hit_box_update_position = np.array(hit_box_update_position+center_update_position)
+            self.hit_box_global = hit_box_update_position
+            self.change_variable_state = False
+
         self.set_position(np.array(center_update_position, dtype = self._wp))
         self.set_angular_position(np.array(angular_update_direction, dtype=self._wp))
-        self.set_vertex_position(vertex_update_position)
-
-        hit_box_update_position = np.apply_along_axis(self._vector_rotation, 1, self.hit_box_local,
-                                                     angular_update_direction, origin )
-
-        hit_box_update_position = np.array(hit_box_update_position+center_update_position)
-        self.hit_box_global = hit_box_update_position
 
 
     def __change_by_time(self, change_argument, change_rate, delta_time):
@@ -251,53 +250,7 @@ class Body:
         """Method of Body not defined. Every child class must overload
         the operator"""
         pass
-
-    def collision_detect(self, other):
-        """Two step detection function.
-        First detection: function test collision_box overlap. If true,
-        second detection: collision test using faces.
-        """
-        if isinstance(other, Body):
-            this_position, other_position =  self.get_position(), other.get_position()
-        else:
-            this_position, other_position = self.get_position(), other.get_position()
-        relative_direction_this_object = other_position - this_position
-        #Collision box test:
-
-        this_collision_box_global = self.collision_box()
-        other_collision_box_global = other.collision_box()
-        difference_collision_box_global = np.array([this_collision_box_global[i]-other_collision_box_global[i]
-                                                    for i in np.arange(len(other_collision_box_global)) ])
-        overlap = np.apply_along_axis(self.__direction, 1, difference_collision_box_global,
-                                      relative_direction_this_object)
-        overlap_result = np.sum(overlap)
-
-        #If collision box overlaps
-        #and if `other` is is instance of `Body`:
-        if overlap_result!= 0 and isinstance(other, Body):
-            print("BODY-BODY COLLISION")
-            face_vector_surface_this_object = self.get_surface_vectors()
-            face_vector_surface_other_object = other.get_surface_vectors()
-            relative_direction_other_object = - relative_direction_this_object
-            #Returns mask for the face_vector_surface:
-            mask_of_this = np.apply_along_axis(self.__direction,1, face_vector_surface_this_object,
-                                relative_direction_this_object)
-
-            mask_of_other = np.apply_along_axis(self.__direction,1, face_vector_surface_other_object,
-                                relative_direction_other_object)
-
-            face_to_collide_this = self.faces[mask_of_this]
-            face_to_collide_other = other.faces[mask_of_other]
-            #np.array([print(faces.get_vertex_position()) for faces in face_to_collide_this])
-            #np.array([print(faces.get_vertex_position()) for faces in face_to_collide_other])
-            #print(face_to_collide_other)
-            #print(mask_of_this, mask_of_other)
-            #print(face_vector_surface_other_object)
-            #print(face_vector_surface_this_object)
-        elif overlap_result!= 0 and isinstance(other, Particle):
-            print("PARTICLE - BODY COLLISION")
-
-    def __direction(self, face_vector, vector_to_proyect):
+    def _direction(self, face_vector, vector_to_proyect):
         """A · B = |A||B| Cos(b). If A · B >= 0, then collision could occurre"""
         condition = False
         condition = False
@@ -328,6 +281,9 @@ class Body:
                                        [max_x, min_y, max_z]
                                        ], dtype = self._wp)
 
+    def kinetic_energy(self):
+
+        return 0.5 * self.mass * np.dot(self.linear_velocity, self.linear_velocity)
     def update(self, delta_time : float):
         delta_time = self._wp(delta_time)
         if self.change_variable_state:

@@ -8,7 +8,7 @@ class Plane(Body):
                  init_angular, init_vel, init_rot, destructive,
                  vertex_input = None,
                  edges_input  = None,_wp = np.float64):
-
+        self.change_variable_state = True
         if vertex_input is None:
             vertex = [[1.,1.,0.], [-1.,1.,0.], [-1.,-1.,0.], [1.,-1.,0]]
         else:
