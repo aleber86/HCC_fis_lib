@@ -69,7 +69,7 @@ if __name__ == '__main__':
                                   np.random.uniform(-10,10),
                                   np.random.uniform(-10,10)]) for _ in np.arange(70)])
     """
-    objects = np.array([Prisma(1,2,1,0,[[0,0,0],[0,0,0]], [1,0,0],[0,1,1], False)])
+    objects = np.array([Prisma(1,2,1,0,[0,0,0],[0,0,0], [1,0,0],[0,1,1], False)])
     start_time = time.perf_counter()
     counter = 1
     with open("data_set.dat", "w") as file_out:

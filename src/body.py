@@ -19,13 +19,15 @@ class Body:
     """
     _tolerance = 1.e-14
     def __init__(self, mass : float, vertex, friction : float,
-                  init_pos : list or np.array, init_vel : list or np.array,
+                  init_pos : list or np.array, init_angular: list or np.array,
+                 init_vel : list or np.array,
                   init_rot : list or np.array, destructive : bool,
                   edges_indexes, _wp = np.float64):
         self._wp = _wp
         self.mass = _wp(mass)
         self.friction = _wp(friction)
         self.position = np.array(init_pos, dtype = _wp)
+        self.angular_position = np.array(init_angular, dtype=_wp)
         self.linear_velocity = np.array(init_vel, dtype = _wp)
         self.rotation_velocity = np.array(init_rot, dtype = _wp)
         self.destructive = destructive
@@ -54,9 +56,10 @@ class Body:
                 vertex_len = len(face.get_vertex_position())
                 self.faces[index].set_vertex_position(self.global_vertex[offset:offset+vertex_len])
                 self.faces[index].vector_surface()
-                _,rot = self.faces[index].get_position()
-                self.faces[index].set_position(np.array([self.global_vertex[offset]
-                                                - self.faces[index].get_vertex_position_local()[0], rot], dtype = self._wp))
+                rot = self.faces[index].get_angular_position()
+                self.faces[index].set_position(np.array(self.global_vertex[offset]
+                                                - self.faces[index].get_vertex_position_local()[0], dtype = self._wp))
+                self.faces[index].set_angular_position(rot)
                 offset += vertex_len
 
 
@@ -76,7 +79,7 @@ class Body:
         to calculate volume of 3D bodys"""
         counter = np.array([0])
         samples = samples_quant
-        position_of_faces = np.array([faces.get_position()[0] for faces in self.faces])
+        position_of_faces = np.array([faces.get_position() for faces in self.faces])
         local_surface_vector = np.array([faces.get_surface_vectors() for faces in self.faces])
         max_x , max_y, max_z = self.hit_box_local[-3]
         min_x , min_y, min_z = self.hit_box_local[0]
@@ -119,11 +122,14 @@ class Body:
     def get_inertia_tensor(self):
         return self.inertia_tensor
 
-    def get_linear_velocity(self):
+    def get_velocity(self):
         return self.linear_velocity
 
     def get_position(self):
         return self.position
+
+    def get_angular_position(self):
+        return self.angular_position
 
     def get_rotation_velocity(self):
         return self.rotation_velocity
@@ -148,6 +154,9 @@ class Body:
 
     def set_axial_vector_to_faces(self, vectors_to_center : np.array):
         self.axial_vectors_to_faces = vectors_to_center
+
+    def set_angular_position(self, angular_position : np.array):
+        self.angular_position = angular_position
 
     def set_edges(self, edg):
         self.edges = edg
@@ -183,6 +192,7 @@ class Body:
                                       [-np.sin(beta), np.cos(beta)*np.sin(gamma), np.cos(beta)*np.cos(gamma)]],
                                       dtype = self._wp)
         diff = vector_to_rotate - origin
+
         row = diff.shape[0]
         diff_column = np.reshape(diff, (row, 1))
         vector_rotated = np.matmul(rotational_matrix, diff_column)
@@ -195,9 +205,10 @@ class Body:
             body defined center by instant position)"""
 
         delta_time = self._wp(delta_time)
-        linear_velocity = self.get_linear_velocity()
+        linear_velocity = self.get_velocity()
         rotational_velocity = self.get_rotation_velocity()
-        center_position, angular_deviation = self.get_position()
+        center_position = self.get_position()
+        angular_deviation = self.get_angular_position()
         center_update_position = self.__change_by_time(center_position , linear_velocity, delta_time)
         angular_update_direction = self.__change_by_time(angular_deviation , rotational_velocity, delta_time)
         if axis is None:
@@ -207,9 +218,9 @@ class Body:
 
         vertex_update_position = np.apply_along_axis(self._vector_rotation, 1, self.local_vertex,
                                                      angular_update_direction, origin )
-
         vertex_update_position = np.array(vertex_update_position+center_update_position)
-        self.set_position(np.array([center_update_position, angular_update_direction], dtype = self._wp))
+        self.set_position(np.array(center_update_position, dtype = self._wp))
+        self.set_angular_position(np.array(angular_update_direction, dtype=self._wp))
         self.set_vertex_position(vertex_update_position)
 
         hit_box_update_position = np.apply_along_axis(self._vector_rotation, 1, self.hit_box_local,
@@ -247,9 +258,9 @@ class Body:
         second detection: collision test using faces.
         """
         if isinstance(other, Body):
-            this_position, other_position =  self.get_position()[0], other.get_position()[0]
+            this_position, other_position =  self.get_position(), other.get_position()
         else:
-            this_position, other_position = self.get_position()[0], other.get_position()
+            this_position, other_position = self.get_position(), other.get_position()
         relative_direction_this_object = other_position - this_position
         #Collision box test:
 
@@ -298,7 +309,6 @@ class Body:
         return self.hit_box_global
 
     def __collision_box(self):
-        origin, _ = self.position
         max_x = np.max(self.local_vertex[:,0])
         max_y = np.max(self.local_vertex[:,1])
         max_z = np.max(self.local_vertex[:,2])

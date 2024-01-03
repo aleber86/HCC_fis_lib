@@ -4,7 +4,8 @@ from plane import Plane
 
 
 class Cilinder(Body):
-    def __init__(self, radius, height, num_lat_faces, mass, friction, init_pos, init_vel,
+    def __init__(self, radius, height, num_lat_faces, mass,
+                 friction, init_pos, init_angular, init_vel,
                  init_rot, destructive, _wp = np.float64):
         """
         Creates 3D mesh of regular body, Cilinder and other regular bodys
@@ -18,7 +19,9 @@ class Cilinder(Body):
         self.faces = None
         self.__init_faces([0,0,0], [0,0,0], friction, destructive)
         vertex, edges_indexes = self.__vertex_to_object__index_edges()
-        Body.__init__(self, mass, vertex, friction, init_pos, init_vel, init_rot, destructive, edges_indexes)
+        Body.__init__(self, mass, vertex, friction, init_pos,
+                      init_angular, init_vel, init_rot,
+                      destructive, edges_indexes)
         self.vector_surface()
         #self.volume = self.volume_calc()
 
@@ -42,10 +45,10 @@ class Cilinder(Body):
         self.faces = np.array([Plane([self.height, self.plane_side,0],
                                      mass,
                                      fric,
-                                     [self.radius*np.array(
+                                     self.radius*np.array(
                                          [np.cos(point*degrees),np.sin(point*degrees),0.]),
                                       [0.,-np.pi/2., degrees*point]
-                                      ], in_vel, in_rot, des)
+                                      , in_vel, in_rot, des)
                                for point in np.arange(points_per_base)]
                               ,dtype = Plane)
 
@@ -57,7 +60,7 @@ class Cilinder(Body):
         top_bottom = np.array([Plane(2,
                                      mass,
                                      fric,
-                                     [[0,0,i*self.height],[(1+i)*np.pi/2.,0,degrees/2.]],
+                                     [0,0,i*self.height],[(1+i)*np.pi/2.,0,degrees/2.],
                                      in_vel,
                                      in_rot,
                                      des,

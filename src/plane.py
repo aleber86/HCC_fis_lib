@@ -4,7 +4,8 @@ from body import Body
 
 class Plane(Body):
     """Primitive mesh body. Child of Body class."""
-    def __init__(self, size, mass,  friction, init_pos, init_vel, init_rot, destructive,
+    def __init__(self, size, mass,  friction, init_pos,
+                 init_angular, init_vel, init_rot, destructive,
                  vertex_input = None,
                  edges_input  = None,_wp = np.float64):
 
@@ -29,7 +30,8 @@ class Plane(Body):
 
 
         edges_indexes = np.array(edges_ind, dtype = np.int32)
-        Body.__init__(self, mass, vertex_array, friction, init_pos, init_vel, init_rot, destructive, edges_indexes)
+        Body.__init__(self, mass, vertex_array, friction, init_pos,
+                      init_angular, init_vel, init_rot, destructive, edges_indexes)
         self.sides = None
         self.vector_surface()
     def volume_calc(self):
@@ -43,7 +45,6 @@ class Plane(Body):
            Body class method OVERLOADED.
            Sets sides of the plane
         """
-        pos, _ = self.get_position()
         vertex_on_global = self.get_vertex_position() #Vertex on global system
         self.sides = np.array([vertex_on_global[self.edges_indexes[index][1]]
                                - vertex_on_global[self.edges_indexes[index][0]]
@@ -102,7 +103,6 @@ class Plane(Body):
     """
     def ray_trace(self, quant = 50):
         edges = self.get_edges()
-        center, _ = self.get_position()
         list_points = []
         for _ in np.arange(quant):
             point = (edges[0][1]-edges[0][0])
