@@ -141,6 +141,9 @@ class Body:
     def get_edges_index(self):
         return self.edges_indexes
 
+    def get_faces(self):
+        return self.faces
+
     def get_friction(self):
         return self.friction
 
@@ -252,7 +255,6 @@ class Body:
         pass
     def _direction(self, face_vector, vector_to_proyect):
         """A · B = |A||B| Cos(b). If A · B >= 0, then collision could occurre"""
-        condition = False
         condition = False
         if np.dot(face_vector, vector_to_proyect)>self._tolerance:
             condition = True

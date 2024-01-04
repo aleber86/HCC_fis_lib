@@ -20,7 +20,7 @@ class Space:
         self.object_subscribed = np.array([])
         self.time = init_time
         self.air = _wp(air_res)
-        self.size_shepre_space = 1.e10
+        self.size_shepre_space = 1.e26
         self._wp = _wp
 
     def subscribe_objects_into_space(self, object_to_subscribe):
@@ -32,20 +32,6 @@ class Space:
         if self.object_subscribed.size>0:
             res = np.apply_along_axis(lambda x : [el.get_state() for el in x] ,0, self.object_subscribed)
             self.object_subscribed = np.delete(self.object_subscribed, res)
-        """
-        if isinstance(object_to_unsuscribe, (list, tuple)):
-            #If is an iterable cast -> np.ndarray
-            object_to_unsuscribe = np.array(object_to_unsuscribe)
-
-        if  (isinstance(object_to_unsuscribe, np.ndarray) and
-        object_to_unsuscribe.shape == self.object_subscribed.shape):
-            self.object_subscribed = np.delete(self.object_subscribed,
-                                               np.where(self.object_subscribed==object_to_unsuscribe))
-        elif(isinstance(object_to_unsuscribe, np.ndarray) and
-             object_to_unsuscribe.shape != self.object_subscribed.shape):
-            for el in object_to_unsuscribe:
-                self.object_subscribed = np.delete(self.object_subscribed, np.where(self.object_subscribed == el))
-        """
 
     def get_objects_in_space(self):
         return self.object_subscribed
@@ -92,30 +78,70 @@ class Space:
             else:
                 particle_instance = second
                 body_instance = first
-            if self.overlap_box(body_instance, particle_instance):
-              #  print("BODY - PARTICLE COLLISION")
+            if self.__overlap_box(body_instance, particle_instance):
+                #print("BODY - PARTICLE COLLISION")
+                self.point_to_face_collision(body_instance, particle_instance)
 
                 collision = True
         elif isinstance(first, Body) and isinstance(second, Body):
-            if self.overlap_box(first, second):
-                #print("BODY-BODY COLLISION")
+            if self.__overlap_box(first, second):
+                self.face_to_face_collision(first, second)
+                print("BODY-BODY COLLISION")
                 collision = True
         return collision
-    def overlap_box(self, this, other):
+
+
+    def __overlap_box(self, this : Body, other : Body or Particle):
+
         this_position = this.get_position()
         other_position = other.get_position()
         relative_direction_this_object = other_position - this_position
         #Collision box test:
 
         this_collision_box_global = this.collision_box()
-        other_collision_box_global = other.collision_box()
-        difference_collision_box_global = np.array([this_collision_box_global[i]-other_collision_box_global[i]
-                                                    for i in np.arange(len(other_collision_box_global)) ])
+        if isinstance(other, Body):
+            other_collision_box_global = other.collision_box()
+            difference_collision_box_global = np.array([this_collision_box_global[i]-other_collision_box_global[i]
+                                                        for i in np.arange(len(this_collision_box_global)) ])
+        else:
+            difference_collision_box_global = np.array([this_collision_box_global[i]-other_position
+                                                        for i in np.arange(len(this_collision_box_global)) ])
+
         overlap = np.apply_along_axis(this._direction, 1, difference_collision_box_global,
                                       relative_direction_this_object)
         overlap_result = np.sum(overlap)
 
         return bool(overlap_result)
+
+    def point_to_face_collision(self, body_object, particle_object):
+        particle_position = particle_object.get_position()
+        body_faces = body_object.get_faces()
+        body_face_versors = np.array([face.get_surface_vectors() for face in body_faces])
+        body_vertex = np.array([face.get_vertex_position() for face in body_faces])
+        body_face_position = np.array([face.get_position() for face in body_faces])
+
+        for index,center,versor in enumerate(zip(body_face_position, body_face_versors)):
+            on_plane = False
+            if np.abs(np.dot(particle_position - center, versor)) <= 1.e-5:
+                on_plane = True
+                print("IMPACT", center, particle_position)
+            if on_plane:
+                for vertex in body_vertex[index]:
+                    pass
+
+
+
+
+    def face_to_face_collision(self, first : Body, second : Body):
+        first_versors = np.array([face.get_surface_vectors() for face in first.get_faces()])
+        second_versors = np.array([second.get_surface_vectors() for face in second.get_faces()])
+        print(first_versors)
+        print(second_versors)
+
+    def momentum_collision_heterogeneous(self, first : Body, second : Body or Particle, position : np.array):
+        pass
+
+
     def momentum_collision_partice_particle(self, first, second):
         """ELASTIC COLLISION"""
         first_velocity = first.get_velocity()
@@ -152,27 +178,31 @@ class Space:
 
         np.array([obj.update(time) for obj in self.object_subscribed])
         np.array([obj.set_position(obj.get_position()+time*obj.get_velocity()) for obj in self.object_subscribed])
-        #self.box_limit()
+        self.box_limit()
         self.time = time
         total_collision = np.sum(collision)
         return total_collision
 
 if __name__ == '__main__':
     np.random.seed(456791)
-    dim = 10
+    dim = 1
     space_instance = Space()
+    """
     particles = [Particle((i+1),
                          [np.random.uniform(0,0),
                           np.random.uniform(0,0),
                           np.random.uniform(-.5,.5)],
                          [np.random.uniform(0,0),
                           np.random.uniform(0,0),
-                          np.random.uniform(-1,1)]
+                          np.random.uniform(-0,0)]
                           )
                  for i in np.arange(dim)]
-    particles.append(Cube(1,1,1,[0,0,0],[0,0,0],[0,0,0],[0,0,0], False))
+    particles.append(Cube(1,1,1,[0,0,3],[0,0,0],[0,0,0],[0,0,0], False))
+    """
+    particles = [Particle(1,[0.1,0.2,0],[0,0,0.1]),
+                 Cube(1,1,0,[0,0,2],[0,0,0],[0,0,0],[0,0,0], False)]
     space_instance.subscribe_objects_into_space(particles)
-    step = 0.1
+    step = 0.01
     condition = True
     time_start = 0.0
     counter = 0
@@ -180,9 +210,12 @@ if __name__ == '__main__':
     total_energy = np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
     while condition:
         time_start += step
+        #render(particles, 1)
         collision = space_instance.update(step)
+        """
         if collision>0:
             k=np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
             print(f"Step: {counter}, total time: {time_start}, Collisions: {collision} ")
             print(f"Total Energy: {total_energy} *** Actual Energy State: {k}")
             counter+=1
+        """
