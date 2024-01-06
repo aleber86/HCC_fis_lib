@@ -3,6 +3,7 @@ from object_class_module import render
 from body import Body
 from particle import Particle
 from cube import Cube
+from cilinder import Cilinder
 from scipy.integrate import odeint
 
 class Space:
@@ -21,7 +22,9 @@ class Space:
         self.time = init_time
         self.air = _wp(air_res)
         self.size_shepre_space = 1.e26
+        self.collision_max_distance = 1.e-5
         self._wp = _wp
+
 
     def subscribe_objects_into_space(self, object_to_subscribe):
         self.object_subscribed = np.append(self.object_subscribed, object_to_subscribe)
@@ -43,7 +46,7 @@ class Space:
             radius = np.sqrt(np.dot(object_x_position, object_x_position))
             if radius >= self.size_shepre_space:
                 vel = object_x.get_velocity()
-                object_x.set_velocity(-vel)
+                object_x.set_velocity(vel*0)
                 if radius>0:
                     new_pos = object_x_position / radius * self.size_shepre_space *0.99999
                     object_x.set_position(new_pos)
@@ -57,7 +60,7 @@ class Space:
         print(self.__dict__)
         return string
 
-    def collision_detect(self, first, second, radius = 1.e-5):
+    def collision_detect(self, first, second, radius = 1.e-7):
         collision = False
         if isinstance(first, Particle) and isinstance(second, Particle):
             sphere_first = first.get_position()
@@ -114,22 +117,33 @@ class Space:
         return bool(overlap_result)
 
     def point_to_face_collision(self, body_object, particle_object):
+        #V.2 of function
+        collision = False
         particle_position = particle_object.get_position()
         body_faces = body_object.get_faces()
-        body_face_versors = np.array([face.get_surface_vectors() for face in body_faces])
-        body_vertex = np.array([face.get_vertex_position() for face in body_faces])
-        body_face_position = np.array([face.get_position() for face in body_faces])
-
-        for index,center,versor in enumerate(zip(body_face_position, body_face_versors)):
+        for face in body_faces:
             on_plane = False
-            if np.abs(np.dot(particle_position - center, versor)) <= 1.e-5:
+            face_versor = face.get_surface_vectors()
+            face_position = face.get_position()
+            if np.fabs(np.dot(particle_position -
+                              face_position, face_versor)) < self.collision_max_distance:
                 on_plane = True
-                print("IMPACT", center, particle_position)
+                print("HIT", face_position, particle_position)
             if on_plane:
-                for vertex in body_vertex[index]:
-                    pass
-
-
+                bool_array_dot_product = np.array([], dtype=bool)
+                center_face_to_particle = particle_position - face_position
+                vertex_per_face = face.get_vertex_position()
+                for vertex in vertex_per_face:
+                    vertex_to_particle = particle_position - vertex
+                    if np.dot(center_face_to_particle, vertex_to_particle)>0:
+                        dot_result = np.array([True], dtype = bool)
+                    else:
+                        dot_result = np.array([False], dtype = bool)
+                    np.append(bool_array_dot_product, dot_result)
+                if np.sum(np.array(bool_array_dot_product)) < len(vertex_per_face):
+                    collision = True
+        if collision:
+            print("Inside", f"Point position: {particle_position}")
 
 
     def face_to_face_collision(self, first : Body, second : Body):
@@ -166,6 +180,27 @@ class Space:
         first.set_velocity(first_new_velocity)
         second.set_velocity(second_new_velocity)
 
+    def force(self, y, t, mass):
+        """ f = m * a -> f = m * dv/dt"""
+        f = np.array([0,0,np.cos(t)])
+        dv_dt = f/mass
+        return dv_dt
+
+    def posi(self, y, t):
+        dr_dt = y
+        return dr_dt
+
+    def integrate(self, step):
+        for obj in self.object_subscribed:
+            t = np.linspace(start=self.time, stop=self.time + step, num=101)
+            vel0 = obj.get_velocity()
+            pos = obj.get_position()
+            mass = obj.get_mass()
+            r = odeint(func=self.posi, y0 = pos, t=t)
+            v = odeint(func = self.force, y0 = vel0, t=t, args=(mass,))
+            obj.set_velocity(v[-1])
+            obj.set_position(r[-1])
+
     def update(self, time):
         """Updates time, position and velocity for every object using odeint from Scipy. Time span is
         calculated with numpy linspace 10 elements, odeint calculates the interval and takes the last element
@@ -177,9 +212,9 @@ class Space:
                       if obj!= sec])
 
         np.array([obj.update(time) for obj in self.object_subscribed])
-        np.array([obj.set_position(obj.get_position()+time*obj.get_velocity()) for obj in self.object_subscribed])
         self.box_limit()
-        self.time = time
+        self.integrate(time)
+        self.time += time
         total_collision = np.sum(collision)
         return total_collision
 
@@ -199,8 +234,8 @@ if __name__ == '__main__':
                  for i in np.arange(dim)]
     particles.append(Cube(1,1,1,[0,0,3],[0,0,0],[0,0,0],[0,0,0], False))
     """
-    particles = [Particle(1,[0.1,0.2,0],[0,0,0.1]),
-                 Cube(1,1,0,[0,0,2],[0,0,0],[0,0,0],[0,0,0], False)]
+    particles = [Particle(1,[0.5,0.5,1],[0,0,0]),
+                 Cube(1,1,0,[0,0,1],[0,0,0],[0,0,0],[0,0,0], False)]
     space_instance.subscribe_objects_into_space(particles)
     step = 0.01
     condition = True

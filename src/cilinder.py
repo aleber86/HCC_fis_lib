@@ -24,8 +24,14 @@ class Cilinder(Body):
                       init_angular, init_vel, init_rot,
                       destructive, edges_indexes)
         self.vector_surface()
+        self.__inertia_tensor()
         #self.volume = self.volume_calc()
 
+    def __inertia_tensor(self):
+        diag_1_1 = 1/12 * self.mass * (3*self.radius**2 + self.height**2)
+        diag_2_2 = diag_1_1
+        diag_3_3 = 0.5 * self.mass * self.radius
+        self.inertia_tensor = np.array([[diag_1_1,0,0], [0,diag_2_2,0], [0,0,diag_3_3]])
 
     def __init_faces(self, in_vel, in_rot, fric, des, mass = 0.):
         """
@@ -101,3 +107,7 @@ class Cilinder(Body):
         """
         self.surface_vector = np.array([face.get_surface_vectors() for face in self.faces])
 
+if __name__ == '__main__':
+    cil = Cilinder(1,1,8,4,0,[0,0,0], [0,0,0], [0,0,0], [0,0,0], False)
+    faces = cil.get_faces()
+    vertex = np.array([face.get_vertex_position() for face in faces])

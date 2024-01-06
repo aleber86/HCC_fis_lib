@@ -26,7 +26,7 @@ def render(objects_array, name):
         if isinstance(obj, Body):
             vertex_array = obj.get_vertex_position()
             edge_array = obj.get_edges()
-            hit_box = obj.collision_box()
+#            hit_box = obj.collision_box()
             for point in vertex_array:
                 x,y,z = point
                 ax.scatter(x,y,z, c='blue', marker='o', s=10)
@@ -36,16 +36,16 @@ def render(objects_array, name):
                 z = [edge[0][2],edge[1][2]]
                 ax.scatter(x,y,z, c='black', s=5)
                 ax.plot(x,y,z, color='black')
-            for point in hit_box:
-                x,y,z = point
-                ax.scatter(x,y,z, c='red', marker='o', s=10)
+ #           for point in hit_box:
+ #               x,y,z = point
+ #               ax.scatter(x,y,z, c='red', marker='o', s=10)
         elif isinstance(obj, Particle):
             x,y,z = obj.get_position()
             ax.scatter(x,y,z, c='b', marker='x', s=5)
-            hit_box = obj.collision_box()
-            for point in hit_box:
-                x,y,z = point
-                ax.scatter(x,y,z, c='red', marker='o', s=10)
+#            hit_box = obj.collision_box()
+#            for point in hit_box:
+#                x,y,z = point
+#                ax.scatter(x,y,z, c='red', marker='o', s=10)
 
     ax.scatter([0,1], [0,0], [0,0], c='blue', s=5)
     ax.plot([0,1], [0,0], [0,0], c='blue')

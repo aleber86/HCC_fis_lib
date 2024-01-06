@@ -166,7 +166,7 @@ class Body:
     def set_inertia_tensor(self, inertia_tensor):
         self.inertia_tensor = inertia_tensor
 
-    def set_linear_velocity(self, velocity):
+    def set_velocity(self, velocity):
         #self.change_status(velocity, self.linear_velocity)
         self.linear_velocity = velocity
 
@@ -284,8 +284,8 @@ class Body:
                                        ], dtype = self._wp)
 
     def kinetic_energy(self):
-
         return 0.5 * self.mass * np.dot(self.linear_velocity, self.linear_velocity)
+
     def update(self, delta_time : float):
         delta_time = self._wp(delta_time)
         if self.change_variable_state:
