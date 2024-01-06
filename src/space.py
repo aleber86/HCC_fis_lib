@@ -68,7 +68,6 @@ class Space:
             radial_sep = sphere_second - sphere_first
             radial_distance = np.sqrt(np.dot(radial_sep, radial_sep))
             if radial_distance <= radius:
-#                print("PARTICLE-PARTICLE COLLISION")
                 self.momentum_collision_partice_particle(first, second)
                 collision = True
 
@@ -81,11 +80,11 @@ class Space:
             else:
                 particle_instance = second
                 body_instance = first
-            if self.__overlap_box(body_instance, particle_instance):
+            #if self.__overlap_box(body_instance, particle_instance):
                 #print("BODY - PARTICLE COLLISION")
-                self.point_to_face_collision(body_instance, particle_instance)
+            self.point_to_face_collision(body_instance, particle_instance)
 
-                collision = True
+            #collision = True
         elif isinstance(first, Body) and isinstance(second, Body):
             if self.__overlap_box(first, second):
                 self.face_to_face_collision(first, second)
@@ -121,12 +120,14 @@ class Space:
         collision = False
         particle_position = particle_object.get_position()
         body_faces = body_object.get_faces()
-        for face in body_faces:
+        for index,face in enumerate(body_faces):
             on_plane = False
             face_versor = face.get_surface_vectors()
             face_position = face.get_position()
-            if np.fabs(np.dot(particle_position -
-                              face_position, face_versor)) < self.collision_max_distance:
+            distance_face_point = np.abs(np.dot(particle_position -
+                              face_position, face_versor))
+            #print(f"INDEX: {index}",distance_face_point, face_position )
+            if distance_face_point <= self.collision_max_distance:
                 on_plane = True
                 print("HIT", face_position, particle_position)
             if on_plane:
@@ -213,7 +214,7 @@ class Space:
 
         np.array([obj.update(time) for obj in self.object_subscribed])
         self.box_limit()
-        self.integrate(time)
+        #self.integrate(time)
         self.time += time
         total_collision = np.sum(collision)
         return total_collision
@@ -234,8 +235,8 @@ if __name__ == '__main__':
                  for i in np.arange(dim)]
     particles.append(Cube(1,1,1,[0,0,3],[0,0,0],[0,0,0],[0,0,0], False))
     """
-    particles = [Particle(1,[0.5,0.5,1],[0,0,0]),
-                 Cube(1,1,0,[0,0,1],[0,0,0],[0,0,0],[0,0,0], False)]
+    particles = [Particle(1,[0.8,0.8,1],[0,0,0]),
+                 Cube(1,1,0,[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.], False)]
     space_instance.subscribe_objects_into_space(particles)
     step = 0.01
     condition = True
@@ -243,14 +244,9 @@ if __name__ == '__main__':
     counter = 0
     collision = 0
     total_energy = np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
-    while condition:
+    #while condition:
+    for i in range(10):
         time_start += step
         #render(particles, 1)
         collision = space_instance.update(step)
-        """
-        if collision>0:
-            k=np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
-            print(f"Step: {counter}, total time: {time_start}, Collisions: {collision} ")
-            print(f"Total Energy: {total_energy} *** Actual Energy State: {k}")
-            counter+=1
-        """
+        print(space_instance.object_subscribed[1].faces[0].get_position())
