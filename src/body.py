@@ -48,6 +48,7 @@ class Body:
         self.surface_vector = None
         self.change_variable_state = True
         self._tolerance = _wp(self._tolerance)
+        self.update_faces()
 
     def update_faces(self):
         if self.faces is not None:
@@ -55,12 +56,10 @@ class Body:
             for index,face in enumerate(self.faces):
                 vertex_len = len(face.get_vertex_position())
                 self.faces[index].set_vertex_position(self.global_vertex[offset:offset+vertex_len])
-                self.faces[index].vector_surface()
                 rot = self.faces[index].get_angular_position()
-                self.faces[index].set_position(np.array(self.global_vertex[offset]
-                                                - self.faces[index].get_vertex_position_local()[0], dtype = self._wp))
                 self.faces[index].set_angular_position(rot)
                 offset += vertex_len
+                self.faces[index].vector_surface()
 
 
     def change_status(self, variable_change, variable_to_change):
@@ -216,6 +215,10 @@ class Body:
             origin = np.zeros(center_position.shape)
         else:
             origin = axis
+        if self.faces is not None:
+            np.array([face.set_position(face.get_position()+center_update_position)
+                                        for face in self.faces])
+
         if self.change_variable_state:
             vertex_update_position = np.apply_along_axis(self._vector_rotation, 1, self.local_vertex,
                                                          angular_update_direction, origin )
@@ -288,10 +291,9 @@ class Body:
 
     def update(self, delta_time : float):
         delta_time = self._wp(delta_time)
-        if self.change_variable_state:
-            self.__vertex_position(delta_time)
-            edge = self.edges_change()
-            self.set_edges(edge)
-            self.vector_surface()
-            self.update_faces()
+        self.__vertex_position(delta_time)
+        edge = self.edges_change()
+        self.set_edges(edge)
+        self.vector_surface()
+        self.update_faces()
 
