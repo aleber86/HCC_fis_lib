@@ -183,7 +183,7 @@ class Space:
 
     def force(self, y, t, mass):
         """ f = m * a -> f = m * dv/dt"""
-        f = np.array([0,0,np.cos(t)])
+        f = np.array([0,0,np.cos(y[2])])
         dv_dt = f/mass
         return dv_dt
 
@@ -195,12 +195,12 @@ class Space:
         for obj in self.object_subscribed:
             t = np.linspace(start=self.time, stop=self.time + step, num=101)
             vel0 = obj.get_velocity()
-            pos = obj.get_position()
+            #pos = obj.get_position()
             mass = obj.get_mass()
-            r = odeint(func=self.posi, y0 = pos, t=t)
+            #r = odeint(func=self.posi, y0 = pos, t=t)
             v = odeint(func = self.force, y0 = vel0, t=t, args=(mass,))
             obj.set_velocity(v[-1])
-            obj.set_position(r[-1])
+            #obj.set_position(r[-1])
 
     def update(self, time):
         """Updates time, position and velocity for every object using odeint from Scipy. Time span is
@@ -214,7 +214,7 @@ class Space:
 
         np.array([obj.update(time) for obj in self.object_subscribed])
         self.box_limit()
-        #self.integrate(time)
+        self.integrate(time)
         self.time += time
         total_collision = np.sum(collision)
         return total_collision
@@ -236,7 +236,7 @@ if __name__ == '__main__':
     particles.append(Cube(1,1,1,[0,0,3],[0,0,0],[0,0,0],[0,0,0], False))
     """
     particles = [Particle(1,[0.8,0.8,1],[0,0,0]),
-                 Cube(1,1,0,[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0.,0.,0.], False)]
+                 Cilinder(1,1,8,10,0,[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0., 0.,1.], False)]
     space_instance.subscribe_objects_into_space(particles)
     step = 0.01
     condition = True
@@ -244,9 +244,9 @@ if __name__ == '__main__':
     counter = 0
     collision = 0
     total_energy = np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
-    #while condition:
-    for i in range(10):
+    print(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
+    quit()
+    while condition:
         time_start += step
-        #render(particles, 1)
         collision = space_instance.update(step)
         print(space_instance.object_subscribed[1].faces[0].get_position())

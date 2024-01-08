@@ -4,7 +4,7 @@ from plane import Plane
 
 
 class Cilinder(Body):
-    def __init__(self, radius, height, num_lat_faces, mass,
+    def __init__(self, diameter, height, num_lat_faces, mass,
                  friction, init_pos, init_angular, init_vel,
                  init_rot, destructive, _wp = np.float64):
         """
@@ -12,8 +12,8 @@ class Cilinder(Body):
         Construct the object using the number of faces and mesurements
         """
         self.change_variable_state = True
-        self.radius = radius
-        self.height = height
+        self.radius = diameter/2
+        self.height = height/2
         self.number_of_lateral_faces = num_lat_faces
         self._wp = _wp
         self.plane_side = 0.0

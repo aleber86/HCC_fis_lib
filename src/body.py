@@ -286,8 +286,26 @@ class Body:
                                        [max_x, min_y, max_z]
                                        ], dtype = self._wp)
 
+    def rotational_energy(self):
+        rotational_velocity = self.rotation_velocity
+        rotational_vector = np.reshape(rotational_velocity, (1,3))
+        flat_product = np.reshape(np.matmul(rotational_vector, self.inertia_tensor), (3,))
+        rot_energy = 0.5 * np.dot(flat_product,rotational_velocity)
+        return rot_energy
+
+    def angular_momentum(self):
+        rotational_velocity = self.rotation_velocity
+        rotational_vector = np.reshape(rotational_velocity, (3,1))
+        angular_momentum_unshape = np.matmul(self.inertia_tensor, rotational_vector)
+        angular_momentum = np.reshape(angular_momentum_unshape, (3,))
+        return angular_momentum
+
+    def linear_momentum(self):
+        return self.mass * self.linear_velocity
+
     def kinetic_energy(self):
-        return 0.5 * self.mass * np.dot(self.linear_velocity, self.linear_velocity)
+        rotational_energy = self.rotational_energy()
+        return 0.5 * self.mass * np.dot(self.linear_velocity, self.linear_velocity) + rotational_energy
 
     def update(self, delta_time : float):
         delta_time = self._wp(delta_time)
