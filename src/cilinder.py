@@ -32,6 +32,7 @@ class Cilinder(Body):
         diag_2_2 = diag_1_1
         diag_3_3 = 0.5 * self.mass * self.radius
         self.inertia_tensor = np.array([[diag_1_1,0,0], [0,diag_2_2,0], [0,0,diag_3_3]])
+        self.inertia_tensor_inverse = np.linalg.inv(self.inertia_tensor)
 
     def __init_faces(self, in_vel, in_rot, fric, des, mass = 0.):
         """

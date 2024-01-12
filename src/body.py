@@ -23,6 +23,7 @@ class Body:
                  init_vel : list or np.array,
                   init_rot : list or np.array, destructive : bool,
                   edges_indexes, _wp = np.float64):
+        self.offset_rotation_axis = None
         self._wp = _wp
         self.mass = _wp(mass)
         self.friction = _wp(friction)
@@ -43,6 +44,7 @@ class Body:
         self.__vertex_position(0.0)
         self.edges = self.edges_change()
         self.inertia_tensor = np.zeros((3,3), dtype = _wp)
+        self.inertia_tensor_inverse = np.zeros((3,3), dtype = _wp)
         self.axial_vectors_to_faces = None
         self.state = True
         self.surface_vector = None
@@ -119,6 +121,9 @@ class Body:
     def get_inertia_tensor(self):
         return self.inertia_tensor
 
+    def get_inertia_tensor_inverse(self):
+        return self.inertia_tensor_inverse
+
     def get_velocity(self):
         return self.linear_velocity
 
@@ -149,8 +154,14 @@ class Body:
     def get_state(self):
         return self.state
 
+    def get_offset_rotation_axis(self):
+        return self.offset_rotation_axis
+
     def set_state(self, state):
         self.state = state
+
+    def set_offset_rotation_axis(self, axis):
+        self.offset_rotation_axis = axis
 
     def set_axial_vector_to_faces(self, vectors_to_center : np.array):
         self.axial_vectors_to_faces = vectors_to_center
@@ -164,6 +175,9 @@ class Body:
 
     def set_inertia_tensor(self, inertia_tensor):
         self.inertia_tensor = inertia_tensor
+
+    def set_inertia_tensor_inverse(self):
+        self.inertia_tensor_inverse = np.linalg.inv(self.inertia_tensor)
 
     def set_velocity(self, velocity):
         #self.change_status(velocity, self.linear_velocity)
@@ -200,7 +214,7 @@ class Body:
         return vector_rotated
 
 
-    def __vertex_position(self, delta_time : float = 0.0, axis : np.array or None = None):
+    def __vertex_position(self, delta_time : float = 0.0):
         """Updates center position and vertex position on global system
             If axis = None, the body rotates over an axis thus it center (not the mass center,
             body defined center by instant position)"""
@@ -211,10 +225,10 @@ class Body:
         angular_deviation = self.get_angular_position()
         center_update_position = self.__change_by_time(center_position , linear_velocity, delta_time)
         angular_update_direction = self.__change_by_time(angular_deviation , rotational_velocity, delta_time)
-        if axis is None:
+        if self.offset_rotation_axis is None:
             origin = np.zeros(center_position.shape)
         else:
-            origin = axis
+            origin = self.offset_rotation_axis
         if self.faces is not None:
             np.array([face.set_position(face.get_position()+center_update_position)
                                         for face in self.faces])

@@ -14,6 +14,7 @@ class Space:
     Uses solve_ivp from Scipy to integrate positions of every
     object.
     """
+    __EPS = 1.e-15
     def __init__(self, init_time = 0.0, gravity : float = 9.88,
                  air_res : float = 0.5, _wp = np.float64):
 
@@ -60,13 +61,16 @@ class Space:
         print(self.__dict__)
         return string
 
-    def collision_detect(self, first, second, radius = 1.e-7):
+    def collision_detect(self, first, second):
         collision = False
         if isinstance(first, Particle) and isinstance(second, Particle):
             sphere_first = first.get_position()
             sphere_second = second.get_position()
+            radius_first = first.get_size()
+            radius_second = second.get.size()
             radial_sep = sphere_second - sphere_first
             radial_distance = np.sqrt(np.dot(radial_sep, radial_sep))
+            radius = radius_first + radius_second
             if radial_distance <= radius:
                 self.momentum_collision_partice_particle(first, second)
                 collision = True
@@ -117,35 +121,36 @@ class Space:
 
     def point_to_face_collision(self, body_object, particle_object):
         #V.2 of function
-        collision = False
         particle_position = particle_object.get_position()
+        particle_radius = particle_object.get_size()
         body_faces = body_object.get_faces()
         for index,face in enumerate(body_faces):
             on_plane = False
+            collision = False
             face_versor = face.get_surface_vectors()
             face_position = face.get_position()
-            distance_face_point = np.abs(np.dot(particle_position -
-                              face_position, face_versor))
-            #print(f"INDEX: {index}",distance_face_point, face_position )
-            if distance_face_point <= self.collision_max_distance:
+            center_face_to_particle = particle_position - face_position
+            distance_face_point = np.abs(np.dot(center_face_to_particle, face_versor))
+            if distance_face_point <= particle_radius + self.__EPS:
                 on_plane = True
-                print("HIT", face_position, particle_position)
+                #print(f"INDEX: {index}",distance_face_point,  face_versor, particle_radius)
             if on_plane:
                 bool_array_dot_product = np.array([], dtype=bool)
-                center_face_to_particle = particle_position - face_position
                 vertex_per_face = face.get_vertex_position()
                 for vertex in vertex_per_face:
                     vertex_to_particle = particle_position - vertex
-                    if np.dot(center_face_to_particle, vertex_to_particle)>0:
+                    if np.dot(center_face_to_particle, vertex_to_particle)>self.__EPS:
                         dot_result = np.array([True], dtype = bool)
                     else:
                         dot_result = np.array([False], dtype = bool)
-                    np.append(bool_array_dot_product, dot_result)
+                    bool_array_dot_product = np.append(bool_array_dot_product, dot_result)
                 if np.sum(np.array(bool_array_dot_product)) < len(vertex_per_face):
                     collision = True
-        if collision:
-            print("Inside", f"Point position: {particle_position}")
-
+                    face_index = index
+            if collision:
+                #print("Inside", f"Point position: {particle_position}; face_pos: {face_index}", distance_face_point)
+                self.momentum_collision_heterogeneous(body_object, particle_object,
+                                                      particle_position, face_index )
 
     def face_to_face_collision(self, first : Body, second : Body):
         first_versors = np.array([face.get_surface_vectors() for face in first.get_faces()])
@@ -153,8 +158,61 @@ class Space:
         print(first_versors)
         print(second_versors)
 
-    def momentum_collision_heterogeneous(self, first : Body, second : Body or Particle, position : np.array):
-        pass
+    def momentum_collision_heterogeneous(self, first : Body,
+                                         second : Particle or Body ,
+                                         position : np.array,
+                                         face_index_first : int, face_index_second : int = None,
+                                         elastic = True):
+
+        """Function to Calculate momentum after collision"""
+        if elastic:
+            e = 1
+        else:
+            e = 0
+
+        if face_index_second is None:
+            """Body - Particle momentum transfer"""
+            body_position = first.get_position()
+            body_velocity = first.get_velocity()
+            body_angular_rotation = first.get_rotation_velocity()
+            body_impact_face = first.get_faces()[face_index_first]
+            body_normal_face_versor = body_impact_face.get_surface_vectors()
+            body_inverse_inertia_tensor = first.get_inertia_tensor_inverse()
+            body_mass = first.get_mass()
+
+
+            particle_position = position
+            particle_velocity = second.get_velocity()
+            particle_mass = second.get_mass()
+
+            #body_new_velocity = body_velocity  -  j_r * body_normal_face_versor / body_mass
+            #particle_new_velocitty = particle_velocity + j_r * body_normal_face_versor / particle_mass
+
+            PoI = particle_position - body_position
+            #Position of impact in local body reference system: PoI = particle_position - body_position
+            #body_new_angular_rotation = body_angular_rotation - j_r * body_inverse_inertia_tensor * (PoI)
+
+            body_v_rot_lin = body_velocity + np.cross(body_angular_rotation, PoI)
+
+            relative_velocity = particle_velocity - body_v_rot_lin
+
+            #relative_new_velocity · versor  = - e * (relative_velocity · versor)
+            denom = np.matmul(body_inverse_inertia_tensor,np.cross(PoI, body_normal_face_versor))
+            last_term = np.cross(denom, PoI)
+            last_term_dot = np.dot(last_term, body_normal_face_versor)
+            impulse_relative = -(1+e)* np.dot(relative_velocity,body_normal_face_versor)/ \
+                                (1./body_mass + 1./particle_mass + last_term_dot)
+
+            body_new_velocity = body_velocity  -  impulse_relative * body_normal_face_versor / body_mass
+            particle_new_velocitty = particle_velocity + impulse_relative * body_normal_face_versor / particle_mass
+
+            PoI_x_versor = np.cross(PoI, body_normal_face_versor)
+            body_new_angular_rotation = body_angular_rotation - impulse_relative \
+                                        * np.matmul(body_inverse_inertia_tensor,PoI_x_versor)
+
+            first.set_velocity(body_new_velocity)
+            first.set_rotation_velocity(body_new_angular_rotation)
+            second.set_velocity(particle_new_velocitty)
 
 
     def momentum_collision_partice_particle(self, first, second):
@@ -181,26 +239,29 @@ class Space:
         first.set_velocity(first_new_velocity)
         second.set_velocity(second_new_velocity)
 
+        print(first_new_velocity, second_new_velocity)
+
     def force(self, y, t, mass):
         """ f = m * a -> f = m * dv/dt"""
         f = np.array([0,0,np.cos(y[2])])
         dv_dt = f/mass
         return dv_dt
 
-    def posi(self, y, t):
-        dr_dt = y
+    def posi(self, y, t, vel0):
+        dr_dt = vel0
         return dr_dt
 
     def integrate(self, step):
         for obj in self.object_subscribed:
             t = np.linspace(start=self.time, stop=self.time + step, num=101)
             vel0 = obj.get_velocity()
-            #pos = obj.get_position()
+            pos = obj.get_position()
             mass = obj.get_mass()
-            #r = odeint(func=self.posi, y0 = pos, t=t)
-            v = odeint(func = self.force, y0 = vel0, t=t, args=(mass,))
-            obj.set_velocity(v[-1])
-            #obj.set_position(r[-1])
+            r = odeint(func=self.posi, y0 = pos, t=t, args=(vel0,))
+            #v = odeint(func = self.force, y0 = vel0, t=t, args=(mass,))
+            #obj.set_velocity(v[-1])
+            obj.set_position(r[1])
+            #print(r[1])
 
     def update(self, time):
         """Updates time, position and velocity for every object using odeint from Scipy. Time span is
@@ -235,8 +296,8 @@ if __name__ == '__main__':
                  for i in np.arange(dim)]
     particles.append(Cube(1,1,1,[0,0,3],[0,0,0],[0,0,0],[0,0,0], False))
     """
-    particles = [Particle(1,[0.8,0.8,1],[0,0,0]),
-                 Cilinder(1,1,8,10,0,[0.,0.,0.],[0.,0.,0.],[0.,0.,0.],[0., 0.,1.], False)]
+    particles = [Particle(1.e-3,10,[.0,0.,-1],[1,1,1]),
+                 Cube(1,1000,0,[0.,0.,0.],[0.,0.,0.],[0.,0.,0],[0., 0.,0.], False)]
     space_instance.subscribe_objects_into_space(particles)
     step = 0.01
     condition = True
@@ -245,8 +306,11 @@ if __name__ == '__main__':
     collision = 0
     total_energy = np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
     print(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
-    quit()
     while condition:
         time_start += step
+        if counter % 100 == 0:
+            render(space_instance.get_objects_in_space(), 1)
+
+            print(np.array([obj.get_position() for obj in space_instance.get_objects_in_space()]))
         collision = space_instance.update(step)
-        print(space_instance.object_subscribed[1].faces[0].get_position())
+        counter+=1
