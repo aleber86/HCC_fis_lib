@@ -2,10 +2,11 @@ import numpy as np
 
 
 class Particle:
-    def __init__(self, mass : float, init_pos : list or np.array = [0., 0., 0.],
+    def __init__(self,size_radius : float,  mass : float, init_pos : list or np.array = [0., 0., 0.],
                  init_vel : list or np.array = [0., 0., 0.],
                  init_external_force : list or np.array = [0.,0.,0.] , friction = 0.8, _wp = np.float64):
         self._wp = _wp
+        self.size_radius = _wp(size_radius)
         self.position = np.array(init_pos, dtype = _wp)
         self.velocity = np.array(init_vel, dtype= _wp)
         self.external_force_interaction = np.array(init_external_force, dtype = _wp)
@@ -38,6 +39,9 @@ class Particle:
 
     def get_momentum(self):
         return self.momentum
+
+    def get_size(self):
+        return self.size_radius
 
     def set_external_force(self, external):
         self.external_force_interaction = external

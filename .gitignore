@@ -3,5 +3,7 @@
 *.png
 *.dat
 *.gp
+/tmp
+/png
 vector_3D.py
 sphere.py

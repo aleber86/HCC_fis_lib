@@ -18,6 +18,7 @@ class Cube(Cilinder):
         diag_2_2 = diag_1_1
         diag_3_3 = diag_2_2
         self.inertia_tensor = np.array([[diag_1_1,0,0],[0,diag_2_2,0],[0,0,diag_3_3]])
+        self.inertia_tensor_inverse = np.linalg.inv(self.inertia_tensor)
 
 class Prisma(Cilinder):
     """Primitive mesh body. Child of Cilinder class."""
