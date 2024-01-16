@@ -11,7 +11,10 @@ class Cilinder(Body):
         Creates 3D mesh of regular body, Cilinder and other regular bodys
         Construct the object using the number of faces and mesurements
         """
-        self.change_variable_state = True
+        self.change_variable_state_position = True
+        self.change_variable_state_angular = True
+        self.change_variable_state_rotation_v = True
+        self.change_variable_state_vel = True
         self.radius = diameter/2
         self.height = height/2
         self.number_of_lateral_faces = num_lat_faces
@@ -25,7 +28,6 @@ class Cilinder(Body):
                       destructive, edges_indexes)
         self.vector_surface()
         self.__inertia_tensor()
-        #self.volume = self.volume_calc()
 
     def __inertia_tensor(self):
         diag_1_1 = 1/12 * self.mass * (3*self.radius**2 + self.height**2)
@@ -55,7 +57,7 @@ class Cilinder(Body):
                                      fric,
                                      self.radius*np.array(
                                          [np.cos(point*degrees),np.sin(point*degrees),0.]),
-                                      [0.,-np.pi/2., degrees*point]
+                                      [0.,np.pi/2., degrees*point]
                                       , in_vel, in_rot, des)
                                for point in np.arange(points_per_base)]
                               ,dtype = Plane)
@@ -68,7 +70,7 @@ class Cilinder(Body):
         top_bottom = np.array([Plane(2,
                                      mass,
                                      fric,
-                                     [0,0,i*self.height],[(1+i)*np.pi/2.,0,degrees/2.],
+                                     [0,0,i*self.height],[(i-1)*np.pi/2,0,degrees/2.],
                                      in_vel,
                                      in_rot,
                                      des,
@@ -109,6 +111,18 @@ class Cilinder(Body):
         self.surface_vector = np.array([face.get_surface_vectors() for face in self.faces])
 
 if __name__ == '__main__':
-    cil = Cilinder(1,1,8,4,0,[0,0,0], [0,0,0], [0,0,0], [0,0,0], False)
-    faces = cil.get_faces()
-    vertex = np.array([face.get_vertex_position() for face in faces])
+    diameter = 1
+    height = 2
+    faces = 50
+    cube = Cilinder(diameter,height,faces,4,0,[10,10,10], [0,1,1], [0,0,0], [0,0,0], False)
+    cube_volume_numeric = cube.volume_calc()
+    cube_volume_analitic = np.pi*(diameter/2.)**2*height
+    relative_error_v = np.abs(cube_volume_numeric - cube_volume_analitic)/np.abs(cube_volume_analitic)*100
+    print(f"Cube numeric volume = {cube_volume_numeric}; Cube analitic volume = {cube_volume_analitic}")
+    print(f"Relative error [%] = {relative_error_v}")
+    print()
+    cube_surface_numeric = cube.total_surface_calc()
+    cube_surface_analitic = np.pi * diameter * height
+    relative_error_s = np.abs(cube_surface_numeric - cube_surface_analitic)/np.abs(cube_surface_analitic)*100
+    print(f"Cube numeric surface = {cube_surface_numeric}; Cube analitic volume = {cube_surface_analitic}")
+    print(f"Relative error [%] = {relative_error_s}")

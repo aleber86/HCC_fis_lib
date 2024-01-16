@@ -1,10 +1,7 @@
 import numpy as np
-from matplotlib import pyplot as plt
-from body import Body
-from cube import Cube, Prisma
-from plane import Plane
-from cilinder import Cilinder
 from particle import Particle
+from body import Body
+from matplotlib import pyplot as plt
 
 
 
@@ -26,7 +23,7 @@ def render(objects_array, name):
         if isinstance(obj, Body):
             vertex_array = obj.get_vertex_position()
             edge_array = obj.get_edges()
-#            hit_box = obj.collision_box()
+            hit_box = obj.collision_box()
             for point in vertex_array:
                 x,y,z = point
                 ax.scatter(x,y,z, c='blue', marker='o', s=10)
@@ -36,9 +33,18 @@ def render(objects_array, name):
                 z = [edge[0][2],edge[1][2]]
                 ax.scatter(x,y,z, c='black', s=5)
                 ax.plot(x,y,z, color='black')
- #           for point in hit_box:
- #               x,y,z = point
- #               ax.scatter(x,y,z, c='red', marker='o', s=10)
+            for point in hit_box:
+                x,y,z = point
+                ax.scatter(x,y,z, c='red', marker='o', s=10)
+
+            for face in obj.get_faces():
+                pos = face.get_position()
+                vec = face.get_surface_vectors()
+                x = [vec[0],pos[0]]
+                y = [vec[1],pos[1]]
+                z = [vec[2], pos[2]]
+                ax.scatter(vec[0],vec[1],vec[2],marker='v',color="r")
+                ax.plot(x,y,z, c='k', marker='o')
         elif isinstance(obj, Particle):
             x,y,z = obj.get_position()
             ax.scatter(x,y,z, c='b', marker='x', s=5)
@@ -57,6 +63,9 @@ def render(objects_array, name):
 #    plt.savefig(f"tmp/image{name}.png")
 
 if __name__ == '__main__':
+    from cube import Cube, Prisma
+    from plane import Plane
+    from cilinder import Cilinder
     import time
     box_limit = 0.5*np.array([1,1,1])
     np.random.seed(1235048800)

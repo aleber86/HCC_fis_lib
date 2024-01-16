@@ -1,5 +1,4 @@
 import numpy as np
-from particle import Particle
 
 class Body:
     r"""Class of 3D objects (mesh only).
@@ -28,7 +27,7 @@ class Body:
         self.mass = _wp(mass)
         self.friction = _wp(friction)
         self.position = np.array(init_pos, dtype = _wp)
-        self.angular_position = np.array(init_angular, dtype=_wp)
+        self.angular_position = np.fmod(np.array(init_angular, dtype=_wp), 2.*np.pi)
         self.linear_velocity = np.array(init_vel, dtype = _wp)
         self.rotation_velocity = np.array(init_rot, dtype = _wp)
         self.destructive = destructive
@@ -48,7 +47,10 @@ class Body:
         self.axial_vectors_to_faces = None
         self.state = True
         self.surface_vector = None
-        self.change_variable_state = True
+        self.change_variable_state_position = True
+        self.change_variable_state_angular = True
+        self.change_variable_state_rotation_v = True
+        self.change_variable_state_vel = True
         self._tolerance = _wp(self._tolerance)
         self.update_faces()
 
@@ -58,8 +60,6 @@ class Body:
             for index,face in enumerate(self.faces):
                 vertex_len = len(face.get_vertex_position())
                 self.faces[index].set_vertex_position(self.global_vertex[offset:offset+vertex_len])
-                rot = self.faces[index].get_angular_position()
-                self.faces[index].set_angular_position(rot)
                 offset += vertex_len
                 self.faces[index].vector_surface()
 
@@ -71,40 +71,54 @@ class Body:
 
         state = np.sum(np.abs(variable_change - variable_to_change))
         if state > self._tolerance:
-            self.change_variable_state = True
+            flag = True
+        else:
+            flag = False
+        return flag
 
-    def volume_calc(self, samples_quant = 5000):
+    def volume_calc(self, samples_quant = 500, n = 10):
         """Function implemented by Monte Carlo simulation as in CAD systems
         to calculate volume of 3D bodys"""
-        counter = np.array([0])
-        samples = samples_quant
-        position_of_faces = np.array([faces.get_position() for faces in self.faces])
-        local_surface_vector = np.array([faces.get_surface_vectors() for faces in self.faces])
-        max_x , max_y, max_z = self.hit_box_local[-3]
-        min_x , min_y, min_z = self.hit_box_local[0]
-        volume_total_box = np.prod(np.array([np.abs(sides[1]-sides[0])
-                                for sides in zip(self.hit_box_local[-3], self.hit_box_local[0])]
-                                            , dtype = self._wp))
-        array_random_points = np.array([np.array([np.random.uniform(min_x, max_x),
-                                np.random.uniform(min_y, max_y),
-                                np.random.uniform(min_z, max_z)])
-                                for _ in np.arange(samples)] , dtype = self._wp)
-        self.array_point = array_random_points
-        np.apply_along_axis(self.__point_calculation, 1, array_random_points,
-                                       local_surface_vector, position_of_faces, counter)
-        print(counter)
-        total_inside = counter[0]
-        print(volume_total_box, total_inside)
-        return total_inside/samples*volume_total_box
+        volume_array = []
+        for _ in np.arange(n):
+            counter = [0]
+            max_x, min_x = np.max(self.global_vertex[:,0]), np.min(self.global_vertex[:,0])
+            max_y, min_y = np.max(self.global_vertex[:,1]), np.min(self.global_vertex[:,1])
+            max_z, min_z = np.max(self.global_vertex[:,2]), np.min(self.global_vertex[:,2])
+            max_vector = np.array([max_x, max_y, max_z])
+            min_vector = np.array([min_x, min_y, min_z])
+            surface_encaps = np.prod([np.abs(max_vector[i]-min_vector[i]) for i in np.arange(3)])
+            array_points_random = np.array([[np.random.uniform(min_vector[0], max_vector[0]),
+                                             np.random.uniform(min_vector[1], max_vector[1]),
+                                             np.random.uniform(min_vector[2], max_vector[2])]
+                                            for _ in np.arange(samples_quant)])
+            self.array_point = array_points_random
+            np.apply_along_axis(self._point_calculation, 1, array_points_random, counter)
+            monte_carlo_area = surface_encaps * counter[0]/samples_quant
+            volume_array.append(monte_carlo_area)
 
-    def __point_calculation(self, point, local_surface_vector, position_of_faces, counter):
-        bool_inside = np.array([np.dot(-point + pos, face_vector_surface)>= 0.
-                                for pos, face_vector_surface in zip(position_of_faces,local_surface_vector)], dtype = bool)
+        return np.mean(volume_array)
 
-        if False in bool_inside:
-            pass
+    def _point_calculation(self, point, counter):
+        bool_array = []
+        for face in self.faces:
+            position = face.get_position()
+            normal_versor = face.get_surface_vectors()
+            if np.dot(point-position, normal_versor-position)<=self._tolerance:
+                bool_array.append(True)
+            else:
+                bool_array.append(False)
+        if np.sum(bool_array)==len(self.faces):
+            counter[0] = counter[0]+1
+
+    def total_surface_calc(self):
+        if self.faces is not None:
+            total_surface_per_face = np.array(
+                [face.surface_calc() for face in self.faces], dtype=self._wp)
+            total_surface = np.sum(total_surface_per_face)
+            return total_surface
         else:
-            counter[0] = counter[0] + 1
+            pass
 
     def density_calc(self):
         """Function sets the density of bodys. All bodys are treated as homogenous.
@@ -167,8 +181,10 @@ class Body:
         self.axial_vectors_to_faces = vectors_to_center
 
     def set_angular_position(self, angular_position : np.array):
-        self.change_status(angular_position, self.angular_position)
-        self.angular_position = angular_position
+        self.change_variable_state_angular = self.change_status(angular_position,
+                                                                self.angular_position)
+        if self.change_variable_state_angular:
+            self.angular_position = angular_position
 
     def set_edges(self, edg):
         self.edges = edg
@@ -180,16 +196,22 @@ class Body:
         self.inertia_tensor_inverse = np.linalg.inv(self.inertia_tensor)
 
     def set_velocity(self, velocity):
-        #self.change_status(velocity, self.linear_velocity)
-        self.linear_velocity = velocity
+        self.change_variable_state_vel = self.change_status(velocity,
+                                                            self.linear_velocity)
+        if self.change_variable_state_vel:
+            self.linear_velocity = velocity
 
     def set_position(self, position):
-        #self.change_status(position, self.position)
-        self.position = position
+        self.change_variable_state_position = self.change_status(position,
+                                                                 self.position)
+        if self.change_variable_state_position:
+            self.position = position
 
     def set_rotation_velocity(self, rotation):
-        self.change_status(rotation, self.rotation_velocity)
-        self.rotation_velocity = rotation
+        self.change_variable_state_rotation_v = self.change_status(rotation,
+                                                                   self.rotation_velocity)
+        if self.change_variable_state_rotation_v:
+            self.rotation_velocity = rotation
 
     def set_vertex_position(self, position_of_vertex : np.array):
         self.global_vertex = position_of_vertex
@@ -197,6 +219,18 @@ class Body:
     def _vector_rotation(self, vector_to_rotate, angular_deviation, origin):
         """Rotation matrix = R_z(alpha)*R_y(beta)*R_x(gamma) | RotMat * VECTOR"""
 
+        """
+        theta, psi, phi = angular_deviation
+        row_1 = [np.cos(psi)*np.cos(phi)-np.cos(theta)*np.sin(phi)*np.sin(psi),
+                 np.cos(psi)*np.sin(phi)+np.cos(theta)*np.cos(phi)*np.sin(psi),
+                 np.sin(psi)*np.sin(theta)]
+        row_2 = [-np.sin(psi)*np.cos(phi)-np.cos(theta)*np.sin(phi)*np.cos(psi),
+                 -np.sin(psi)*np.sin(phi)+np.cos(theta)*np.cos(phi)*np.cos(psi),
+                 np.cos(psi)*np.sin(theta)]
+        row_3 = [np.sin(theta)*np.sin(phi), -np.sin(theta)*np.cos(phi), np.cos(theta)]
+
+        rotational_matrix = np.matrix([row_1, row_2, row_3], dtype=self._wp)
+        """
         gamma, beta, alpha = angular_deviation
         rotational_matrix = np.matrix([[np.cos(alpha)*np.cos(beta),
                                        np.cos(alpha)*np.sin(beta)*np.sin(gamma) - np.sin(alpha)*np.cos(gamma),
@@ -205,7 +239,7 @@ class Body:
                                        np.sin(alpha)*np.sin(gamma)+np.cos(alpha)*np.cos(gamma),
                                        np.sin(alpha)*np.sin(beta)*np.cos(gamma)-np.cos(alpha)*np.sin(gamma)],
                                       [-np.sin(beta), np.cos(beta)*np.sin(gamma), np.cos(beta)*np.cos(gamma)]],
-                                      dtype = self._wp)
+        dtype = self._wp)
         diff = vector_to_rotate - origin
 
         row = diff.shape[0]
@@ -218,22 +252,22 @@ class Body:
         """Updates center position and vertex position on global system
             If axis = None, the body rotates over an axis thus it center (not the mass center,
             body defined center by instant position)"""
-        delta_time = self._wp(delta_time)
-        linear_velocity = self.get_velocity()
-        rotational_velocity = self.get_rotation_velocity()
-        center_position = self.get_position()
-        angular_deviation = self.get_angular_position()
-        center_update_position = self.__change_by_time(center_position , linear_velocity, delta_time)
-        angular_update_direction = self.__change_by_time(angular_deviation , rotational_velocity, delta_time)
+        zero_vector = np.zeros((3,), dtype = self._wp)
+        if self.change_variable_state_position:
+            center_update_position = self.get_position()
+        else:
+            center_update_position = zero_vector
         if self.offset_rotation_axis is None:
-            origin = np.zeros(center_position.shape)
+            origin = zero_vector
         else:
             origin = self.offset_rotation_axis
-        if self.faces is not None:
-            np.array([face.set_position(face.get_position()+center_update_position)
-                                        for face in self.faces])
+        #if self.faces is not None:
+        #    np.array([face.set_position(face.get_position()+center_update_position)
+        #                                for face in self.faces])
 
-        if self.change_variable_state:
+        if self.change_variable_state_angular:
+
+            angular_update_direction = self.get_angular_position()
             vertex_update_position = np.apply_along_axis(self._vector_rotation, 1, self.local_vertex,
                                                          angular_update_direction, origin )
             vertex_update_position = np.array(vertex_update_position+center_update_position)
@@ -243,11 +277,17 @@ class Body:
 
             hit_box_update_position = np.array(hit_box_update_position+center_update_position)
             self.hit_box_global = hit_box_update_position
-            self.change_variable_state = False
-
-        self.set_position(np.array(center_update_position, dtype = self._wp))
-        self.set_angular_position(np.array(angular_update_direction, dtype=self._wp))
-
+        if self.faces is not None:
+            positions_local = np.array([face.get_position()  for face in self.faces])
+            if self.change_variable_state_angular:
+                position_new_local = np.apply_along_axis(self._vector_rotation, 1, positions_local,
+                                                         angular_update_direction, origin)
+            else:
+                position_new_local = positions_local
+            position_new_global = position_new_local
+            for vec,face in zip(position_new_global,self.faces):
+                vec1 = np.reshape(np.array(vec), (3,))
+                face.set_position(vec1 + self.position)
 
     def __change_by_time(self, change_argument, change_rate, delta_time):
         """Change on phase space"""
@@ -307,6 +347,12 @@ class Body:
         rot_energy = 0.5 * np.dot(flat_product,rotational_velocity)
         return rot_energy
 
+    def linear_energy(self):
+        linear_velocity = self.linear_velocity
+        mass = self.mass
+        lin_energy = 0.5 *mass* np.dot(linear_velocity,linear_velocity)
+        return lin_energy
+
     def angular_momentum(self):
         rotational_velocity = self.rotation_velocity
         rotational_vector = np.reshape(rotational_velocity, (3,1))
@@ -319,7 +365,8 @@ class Body:
 
     def kinetic_energy(self):
         rotational_energy = self.rotational_energy()
-        return 0.5 * self.mass * np.dot(self.linear_velocity, self.linear_velocity) + rotational_energy
+        kin_en_lin = self.linear_energy()
+        return kin_en_lin + rotational_energy
 
     def update(self, delta_time : float):
         delta_time = self._wp(delta_time)
