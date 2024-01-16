@@ -67,7 +67,7 @@ class Space:
             sphere_first = first.get_position()
             sphere_second = second.get_position()
             radius_first = first.get_size()
-            radius_second = second.get.size()
+            radius_second = second.get_size()
             radial_sep = sphere_second - sphere_first
             radial_distance = np.sqrt(np.dot(radial_sep, radial_sep))
             radius = radius_first + radius_second
@@ -133,7 +133,6 @@ class Space:
             distance_face_point = np.abs(np.dot(center_face_to_particle, face_versor))
             if distance_face_point <= particle_radius + self.__EPS:
                 on_plane = True
-                #print(f"INDEX: {index}",distance_face_point,  face_versor, particle_radius)
             if on_plane:
                 bool_array_dot_product = np.array([], dtype=bool)
                 vertex_per_face = face.get_vertex_position()
@@ -148,7 +147,6 @@ class Space:
                     collision = True
                     face_index = index
             if collision:
-                #print("Inside", f"Point position: {particle_position}; face_pos: {face_index}", distance_face_point)
                 self.momentum_collision_heterogeneous(body_object, particle_object,
                                                       particle_position, face_index )
 
@@ -254,14 +252,18 @@ class Space:
     def integrate(self, step):
         for obj in self.object_subscribed:
             t = np.linspace(start=self.time, stop=self.time + step, num=101)
-            vel0 = obj.get_velocity()
-            pos = obj.get_position()
-            mass = obj.get_mass()
+            if isinstance(obj, Body):
+                vel0 = np.append(obj.get_velocity(), obj.get_rotation_velocity())
+                pos = np.append(obj.get_position(), obj.get_angular_position())
+            else:
+                vel0 = obj.get_velocity()
+                pos = obj.get_position()
             r = odeint(func=self.posi, y0 = pos, t=t, args=(vel0,))
-            #v = odeint(func = self.force, y0 = vel0, t=t, args=(mass,))
-            #obj.set_velocity(v[-1])
-            obj.set_position(r[1])
-            #print(r[1])
+            if isinstance(obj, Body):
+                obj.set_position(r[-1][:3])
+                obj.set_angular_position(r[-1][3:])
+            else:
+                obj.set_position(r[-1])
 
     def update(self, time):
         """Updates time, position and velocity for every object using odeint from Scipy. Time span is
@@ -284,33 +286,26 @@ if __name__ == '__main__':
     np.random.seed(456791)
     dim = 1
     space_instance = Space()
-    """
-    particles = [Particle((i+1),
-                         [np.random.uniform(0,0),
-                          np.random.uniform(0,0),
-                          np.random.uniform(-.5,.5)],
-                         [np.random.uniform(0,0),
-                          np.random.uniform(0,0),
-                          np.random.uniform(-0,0)]
-                          )
-                 for i in np.arange(dim)]
-    particles.append(Cube(1,1,1,[0,0,3],[0,0,0],[0,0,0],[0,0,0], False))
-    """
-    particles = [Particle(1.e-3,10,[.0,0.,-1],[1,1,1]),
-                 Cube(1,1000,0,[0.,0.,0.],[0.,0.,0.],[0.,0.,0],[0., 0.,0.], False)]
+    particles = [Particle(1.e-3,1,[.0,0.5,-1],[0,0,10]),
+                 #Particle(1.e-3,1,[.1,0.1,-1],[0,0,2]),
+                 #Particle(1.e-2, 2, [1,0,0], [-1,0,0]),
+                 Particle(1.e-3, 1, [0,-0.5,1], [0,0,-10]),
+                 Cube(1,20,0,[0.,0.,0.],[0.,0.,0.],[0.,0.,0],[0., 0.,0.], False)]
     space_instance.subscribe_objects_into_space(particles)
     step = 0.01
     condition = True
     time_start = 0.0
     counter = 0
     collision = 0
+    to_text = ""
     total_energy = np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
     print(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
     while condition:
         time_start += step
-        if counter % 100 == 0:
+        if counter % 4 == 0:
             render(space_instance.get_objects_in_space(), 1)
-
-            print(np.array([obj.get_position() for obj in space_instance.get_objects_in_space()]))
+            total_energy = np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
+            print(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
+            print(f"Total energy: {total_energy}")
         collision = space_instance.update(step)
         counter+=1
