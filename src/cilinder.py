@@ -21,6 +21,7 @@ class Cilinder(Body):
         self._wp = _wp
         self.plane_side = 0.0
         self.faces = None
+        self.faces_local_position = None
         self.__init_faces([0,0,0], [0,0,0], friction, destructive)
         vertex, edges_indexes = self.__vertex_to_object__index_edges()
         Body.__init__(self, mass, vertex, friction, init_pos,
@@ -77,7 +78,7 @@ class Cilinder(Body):
                                      vertex_top_bottom_face)
                                      for i in [-1,1]], dtype=Plane)
         self.faces = np.append(self.faces, top_bottom, axis=0)
-
+        self.faces_local_position = np.array([face.get_position() for face in self.faces])
 
     def __vertex_to_object__index_edges(self ):
         """

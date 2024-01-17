@@ -40,7 +40,7 @@ class Body:
         self.global_vertex = 0.0
         self.array_point = np.array([[0,0,0]])
         self.__collision_box()
-        self.__vertex_position(0.0)
+        self.__vertex_position()
         self.edges = self.edges_change()
         self.inertia_tensor = np.zeros((3,3), dtype = _wp)
         self.inertia_tensor_inverse = np.zeros((3,3), dtype = _wp)
@@ -76,7 +76,7 @@ class Body:
             flag = False
         return flag
 
-    def volume_calc(self, samples_quant = 500, n = 10):
+    def volume_calc(self, samples_quant = 2000, n = 10):
         """Function implemented by Monte Carlo simulation as in CAD systems
         to calculate volume of 3D bodys"""
         volume_array = []
@@ -104,7 +104,7 @@ class Body:
         for face in self.faces:
             position = face.get_position()
             normal_versor = face.get_surface_vectors()
-            if np.dot(point-position, normal_versor-position)<=self._tolerance:
+            if np.dot(point-position, normal_versor-position)<=0.:
                 bool_array.append(True)
             else:
                 bool_array.append(False)
@@ -248,15 +248,15 @@ class Body:
         return vector_rotated
 
 
-    def __vertex_position(self, delta_time : float = 0.0):
+    def __vertex_position(self):
         """Updates center position and vertex position on global system
             If axis = None, the body rotates over an axis thus it center (not the mass center,
             body defined center by instant position)"""
         zero_vector = np.zeros((3,), dtype = self._wp)
-        if self.change_variable_state_position:
-            center_update_position = self.get_position()
-        else:
-            center_update_position = zero_vector
+#        if self.change_variable_state_position:
+        center_update_position = self.position
+#        else:
+#            center_update_position = zero_vector
         if self.offset_rotation_axis is None:
             origin = zero_vector
         else:
@@ -278,7 +278,7 @@ class Body:
             hit_box_update_position = np.array(hit_box_update_position+center_update_position)
             self.hit_box_global = hit_box_update_position
         if self.faces is not None:
-            positions_local = np.array([face.get_position()  for face in self.faces])
+            positions_local= self.faces_local_position
             if self.change_variable_state_angular:
                 position_new_local = np.apply_along_axis(self._vector_rotation, 1, positions_local,
                                                          angular_update_direction, origin)
@@ -287,8 +287,7 @@ class Body:
             position_new_global = position_new_local
             for vec,face in zip(position_new_global,self.faces):
                 vec1 = np.reshape(np.array(vec), (3,))
-                face.set_position(vec1 + self.position)
-
+                face.set_position(vec1+center_update_position)
     def __change_by_time(self, change_argument, change_rate, delta_time):
         """Change on phase space"""
         changed_argument = change_argument + change_rate * delta_time
@@ -369,8 +368,7 @@ class Body:
         return kin_en_lin + rotational_energy
 
     def update(self, delta_time : float):
-        delta_time = self._wp(delta_time)
-        self.__vertex_position(delta_time)
+        self.__vertex_position()
         edge = self.edges_change()
         self.set_edges(edge)
         self.vector_surface()
