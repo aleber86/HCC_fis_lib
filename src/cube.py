@@ -35,7 +35,7 @@ if __name__ == '__main__':
     cube = Cube(size,1,0,[0,0,0],[0,0,0],[1,1,1],[0,1,1], False)
     objects = [cube]
     for t in range(0,100):
-        cube_volume_numeric = cube.volume_calc()
+        cube_volume_numeric = cube.volume_calc(1000, 10)
         pos = cube.get_angular_position()
         rot = cube.get_rotation_velocity()*0.01*t + pos
         cube.set_angular_position(rot)
@@ -50,9 +50,9 @@ if __name__ == '__main__':
         print(f"Cube numeric volume = {cube_volume_numeric}; Cube analitic volume = {cube_volume_analitic}")
         print(f"Relative error [%] = {relative_error_v}")
         print()
+        cube_surface_numeric = cube.total_surface_calc()
+        cube_surface_analitic = 6*size**2
+        relative_error_s = np.abs(cube_surface_numeric - cube_surface_analitic)/np.abs(cube_surface_analitic)*100
+        print(f"Cube numeric surface = {cube_surface_numeric}; Cube analitic volume = {cube_surface_analitic}")
+        print(f"Relative error [%] = {relative_error_s}")
         cube.update(0)
-    #cube_surface_numeric = cube.total_surface_calc()
-    #cube_surface_analitic = 6*size**2
-    #relative_error_s = np.abs(cube_surface_numeric - cube_surface_analitic)/np.abs(cube_surface_analitic)*100
-    #print(f"Cube numeric surface = {cube_surface_numeric}; Cube analitic volume = {cube_surface_analitic}")
-    #print(f"Relative error [%] = {relative_error_s}")

@@ -64,19 +64,31 @@ class Cilinder(Body):
                               ,dtype = Plane)
 
         #Definition of the top and bottom vertex
-        vertex_top_bottom_face = np.sqrt(self.radius**2 + self.plane_side**2)* np.array([[np.cos(deg*degrees),
-                                                         np.sin(deg*degrees),
+        vertex_top_bottom_face = np.sqrt(self.radius**2 + self.plane_side**2)* np.array([[np.cos(deg*degrees+np.pi/4),
+                                                         np.sin(deg*degrees+np.pi/4.),
                                                          0] for deg in np.arange(points_per_base)])
+        #vertex_top_bottom_face = np.sqrt(self.radius**2 + self.plane_side**2)* np.array([[np.cos(deg*degrees),
+        #                                                 np.sin(deg*degrees),
+        #                                                 0] for deg in np.arange(points_per_base)])
         #Bottom first then top faces. Uses the edges and vertex defined before
         top_bottom = np.array([Plane(2,
                                      mass,
                                      fric,
-                                     [0,0,i*self.height],[(i-1)*np.pi/2,0,degrees/2.],
+                                     [0,0,i*self.height],[(i-1)*np.pi/2,0,0],
                                      in_vel,
                                      in_rot,
                                      des,
                                      vertex_top_bottom_face)
                                      for i in [-1,1]], dtype=Plane)
+        #top_bottom = np.array([Plane(2,
+        #                             mass,
+        #                             fric,
+        #                             [0,0,i*self.height],[(i-1)*np.pi/2,0,degrees/2.],
+        #                             in_vel,
+        #                             in_rot,
+        #                             des,
+        #                             vertex_top_bottom_face)
+        #                             for i in [-1,1]], dtype=Plane)
         self.faces = np.append(self.faces, top_bottom, axis=0)
         self.faces_local_position = np.array([face.get_position() for face in self.faces])
 
@@ -114,16 +126,16 @@ class Cilinder(Body):
 if __name__ == '__main__':
     diameter = 1
     height = 2
-    faces = 50
+    faces = 120
     cube = Cilinder(diameter,height,faces,4,0,[10,10,10], [0,1,1], [0,0,0], [0,0,0], False)
-    cube_volume_numeric = cube.volume_calc()
+    cube_volume_numeric = cube.volume_calc(500, 10)
     cube_volume_analitic = np.pi*(diameter/2.)**2*height
     relative_error_v = np.abs(cube_volume_numeric - cube_volume_analitic)/np.abs(cube_volume_analitic)*100
     print(f"Cube numeric volume = {cube_volume_numeric}; Cube analitic volume = {cube_volume_analitic}")
     print(f"Relative error [%] = {relative_error_v}")
     print()
-    cube_surface_numeric = cube.total_surface_calc()
-    cube_surface_analitic = np.pi * diameter * height
+    cube_surface_numeric = cube.total_surface_calc(500, 10)
+    cube_surface_analitic = np.pi * diameter * height + 2*np.pi*(diameter/2.)**2
     relative_error_s = np.abs(cube_surface_numeric - cube_surface_analitic)/np.abs(cube_surface_analitic)*100
-    print(f"Cube numeric surface = {cube_surface_numeric}; Cube analitic volume = {cube_surface_analitic}")
+    print(f"Cube numeric surface = {cube_surface_numeric}; Cube analitic surface = {cube_surface_analitic}")
     print(f"Relative error [%] = {relative_error_s}")

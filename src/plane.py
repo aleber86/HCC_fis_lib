@@ -50,14 +50,15 @@ class Plane(Body):
         surface_array = []
         for _ in np.arange(n):
             counter = [0]
-            vertex_global = self.global_vertex
+            vertex_global = self.local_vertex
             max_x, min_x = np.max(vertex_global[:,0]), np.min(vertex_global[:,0])
             max_y, min_y = np.max(vertex_global[:,1]), np.min(vertex_global[:,1])
             max_z, min_z = np.max(vertex_global[:,2]), np.min(vertex_global[:,2])
+#            print(max_x,min_x, max_y, min_y)
             surface_encaps = np.abs(max_x - min_x)*np.abs(max_y - min_y)
             point_array_random = np.array([[np.random.uniform(min_x,max_x),
                                    np.random.uniform(min_y,max_y),
-                                   np.random.uniform(min_z, max_z)] for _ in np.arange(quant)], dtype=self._wp)
+                                   0] for _ in np.arange(quant)], dtype=self._wp)
             np.apply_along_axis(self._inside_of_plane, 1, point_array_random,
                                              vertex_global, counter)
             surface_numeric = surface_encaps * counter[0] / quant
@@ -68,7 +69,7 @@ class Plane(Body):
 
 
     def _inside_of_plane(self, point, array_vertex, counter):
-        center_to_point = point + self.position
+        center_to_point = point
         for vertex in array_vertex:
             bool_array = []
             vertex_to_point = point - vertex

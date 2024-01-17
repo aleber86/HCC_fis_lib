@@ -111,10 +111,10 @@ class Body:
         if np.sum(bool_array)==len(self.faces):
             counter[0] = counter[0]+1
 
-    def total_surface_calc(self):
+    def total_surface_calc(self, quant = 1000, n=10):
         if self.faces is not None:
             total_surface_per_face = np.array(
-                [face.surface_calc() for face in self.faces], dtype=self._wp)
+                [face.surface_calc(quant, n) for face in self.faces], dtype=self._wp)
             total_surface = np.sum(total_surface_per_face)
             return total_surface
         else:
