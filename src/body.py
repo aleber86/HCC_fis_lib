@@ -247,6 +247,25 @@ class Body:
         vector_rotated = np.matmul(rotational_matrix, diff_column)
         return vector_rotated
 
+    def _vector_rotation_2(self, vector_to_rotate, angular_deviation, origin):
+        """Rotation matrix = R_z(alpha)*R_y(beta)*R_x(gamma) | RotMat * VECTOR"""
+
+        theta, psi, phi = angular_deviation
+        row_1 = [np.cos(psi)*np.cos(phi)-np.cos(theta)*np.sin(phi)*np.sin(psi),
+                 np.cos(psi)*np.sin(phi)+np.cos(theta)*np.cos(phi)*np.sin(psi),
+                 np.sin(psi)*np.sin(theta)]
+        row_2 = [-np.sin(psi)*np.cos(phi)-np.cos(theta)*np.sin(phi)*np.cos(psi),
+                 -np.sin(psi)*np.sin(phi)+np.cos(theta)*np.cos(phi)*np.cos(psi),
+                 np.cos(psi)*np.sin(theta)]
+        row_3 = [np.sin(theta)*np.sin(phi), -np.sin(theta)*np.cos(phi), np.cos(theta)]
+
+        rotational_matrix = np.matrix([row_1, row_2, row_3], dtype=self._wp)
+        diff = vector_to_rotate - origin
+
+        row = diff.shape[0]
+        diff_column = np.reshape(diff, (row, 1))
+        vector_rotated = np.matmul(rotational_matrix, diff_column)
+        return vector_rotated
 
     def __vertex_position(self):
         """Updates center position and vertex position on global system
@@ -281,6 +300,47 @@ class Body:
             positions_local= self.faces_local_position
             if self.change_variable_state_angular:
                 position_new_local = np.apply_along_axis(self._vector_rotation, 1, positions_local,
+                                                         angular_update_direction, origin)
+            else:
+                position_new_local = positions_local
+            position_new_global = position_new_local
+            for vec,face in zip(position_new_global,self.faces):
+                vec1 = np.reshape(np.array(vec), (3,))
+                face.set_position(vec1+center_update_position)
+
+    def __vertex_position_2(self):
+        """Updates center position and vertex position on global system
+            If axis = None, the body rotates over an axis thus it center (not the mass center,
+            body defined center by instant position)"""
+        zero_vector = np.zeros((3,), dtype = self._wp)
+#        if self.change_variable_state_position:
+        center_update_position = self.position
+#        else:
+#            center_update_position = zero_vector
+        if self.offset_rotation_axis is None:
+            origin = zero_vector
+        else:
+            origin = self.offset_rotation_axis
+        #if self.faces is not None:
+        #    np.array([face.set_position(face.get_position()+center_update_position)
+        #                                for face in self.faces])
+
+        if self.change_variable_state_angular:
+
+            angular_update_direction = self.get_angular_position()
+            vertex_update_position = np.apply_along_axis(self._vector_rotation_2, 1, self.local_vertex,
+                                                         angular_update_direction, origin )
+            vertex_update_position = np.array(vertex_update_position+center_update_position)
+            self.set_vertex_position(vertex_update_position)
+            hit_box_update_position = np.apply_along_axis(self._vector_rotation_2, 1, self.hit_box_local,
+                                                         angular_update_direction, origin )
+
+            hit_box_update_position = np.array(hit_box_update_position+center_update_position)
+            self.hit_box_global = hit_box_update_position
+        if self.faces is not None:
+            positions_local= self.faces_local_position
+            if self.change_variable_state_angular:
+                position_new_local = np.apply_along_axis(self._vector_rotation_2, 1, positions_local,
                                                          angular_update_direction, origin)
             else:
                 position_new_local = positions_local
@@ -341,13 +401,12 @@ class Body:
 
     def rotational_energy(self):
         rotational_velocity = self.rotation_velocity
-        rotational_vector = np.reshape(rotational_velocity, (1,3))
-        flat_product = np.reshape(np.matmul(rotational_vector, self.inertia_tensor), (3,))
-        rot_energy = 0.5 * np.dot(flat_product,rotational_velocity)
+        angular_momentum = self.angular_momentum()
+        rot_energy = 0.5 * np.dot(rotational_velocity, angular_momentum)
         return rot_energy
 
     def linear_energy(self):
-        linear_velocity = self.linear_velocity
+        linear_velocity = self.get_velocity()
         mass = self.mass
         lin_energy = 0.5 *mass* np.dot(linear_velocity,linear_velocity)
         return lin_energy

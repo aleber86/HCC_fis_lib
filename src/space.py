@@ -187,12 +187,15 @@ class Space:
             #particle_new_velocitty = particle_velocity + j_r * body_normal_face_versor / particle_mass
 
             PoI = particle_position - body_position
+#            PoI_versor = PoI/np.linalg.norm(PoI)
             #Position of impact in local body reference system: PoI = particle_position - body_position
             #body_new_angular_rotation = body_angular_rotation - j_r * body_inverse_inertia_tensor * (PoI)
 
             body_v_rot_lin = body_velocity + np.cross(body_angular_rotation, PoI)
 
-            relative_velocity = particle_velocity - body_v_rot_lin
+
+            #relative_velocity = (particle_velocity - np.cross(particle_velocity, PoI_versor)) - body_v_rot_lin
+            relative_velocity = (particle_velocity ) - body_v_rot_lin
 
             #relative_new_velocity · versor  = - e * (relative_velocity · versor)
             denom = np.matmul(body_inverse_inertia_tensor,np.cross(PoI, body_normal_face_versor))
@@ -286,11 +289,8 @@ if __name__ == '__main__':
     np.random.seed(456791)
     dim = 1
     space_instance = Space()
-    particles = [Particle(1.e-3,1,[.0,0.5,-1],[0,0,10]),
-                 #Particle(1.e-3,1,[.1,0.1,-1],[0,0,2]),
-                 #Particle(1.e-2, 2, [1,0,0], [-1,0,0]),
-                 Particle(1.e-3, 1, [0,-0.5,1], [0,0,-10]),
-                 Cube(1,20,0,[0.,0.,0.],[0.,0.,0.],[0.,0.,0],[0., 0.,0.], False)]
+    particles = [Particle(1.e-3,4,[.5,.5,-1],[0,0,10]),
+                 Cube(1,20,0,[0.,0.,0.],[0.,0.,0.],[0.,0.,0],[0., 0.,10.], False)]
     space_instance.subscribe_objects_into_space(particles)
     step = 0.01
     condition = True
@@ -298,14 +298,22 @@ if __name__ == '__main__':
     counter = 0
     collision = 0
     to_text = ""
-    total_energy = np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
-    print(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
     while condition:
         time_start += step
-        if counter % 4 == 0:
-            render(space_instance.get_objects_in_space(), 1)
+        if counter % 1000 == 0:
+    #        render(space_instance.get_objects_in_space(), 1)
+            linear_momentum = np.array([obj.get_velocity()*obj.get_mass()
+                                        for obj in space_instance.get_objects_in_space()])
+            #print(linear_momentum)
+            print(f"total linear momentum: {np.sum(linear_momentum)}")
+            objects = space_instance.get_objects_in_space()
+            angular_momentum = np.array([np.cross(objects[0].get_position()- objects[1].get_position(),
+                                          objects[0].get_velocity()*objects[0].get_mass()),
+                                 objects[1].angular_momentum()])
+            #print(angular_momentum)
+            print(f"total angular momentum: {np.sum(angular_momentum)}")
             total_energy = np.sum(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
-            print(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
             print(f"Total energy: {total_energy}")
+            #print(np.array([obj.kinetic_energy() for obj in space_instance.get_objects_in_space()]))
         collision = space_instance.update(step)
         counter+=1
