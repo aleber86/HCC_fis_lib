@@ -53,8 +53,6 @@ class Plane(Body):
             vertex_global = self.local_vertex
             max_x, min_x = np.max(vertex_global[:,0]), np.min(vertex_global[:,0])
             max_y, min_y = np.max(vertex_global[:,1]), np.min(vertex_global[:,1])
-            max_z, min_z = np.max(vertex_global[:,2]), np.min(vertex_global[:,2])
-#            print(max_x,min_x, max_y, min_y)
             surface_encaps = np.abs(max_x - min_x)*np.abs(max_y - min_y)
             point_array_random = np.array([[np.random.uniform(min_x,max_x),
                                    np.random.uniform(min_y,max_y),
@@ -64,6 +62,7 @@ class Plane(Body):
             surface_numeric = surface_encaps * counter[0] / quant
             surface_array.append(surface_numeric)
         mean_surface_value = np.mean(surface_array)
+        self.area = mean_surface_value
         return mean_surface_value
 
 
@@ -101,6 +100,7 @@ class Plane(Body):
 
 
 if __name__ == '__main__':
-    plane_test = Plane(10, 0, 0, [1,10,1], [0,1,1], [0,0,0], [0,0,0], False)
+    size = [2,2,0]
+    plane_test = Plane(size, 0, 0, [1,10,1], [0,1,1], [0,0,0], [0,0,0], False)
     surface = plane_test.surface_calc()
     print(surface)

@@ -53,6 +53,49 @@ class Cilinder(Body):
         Rotation on Y axis is fixed so the planes sides surface vectors points outside of
         the body. And Z axis rotation gives the angular position of every face to cover the body
         """
+        #dimensions = [self.height, self.plane_side,0]
+        dimensions = [self.plane_side, self.height, 0]
+        self.faces = np.array([Plane(dimensions,
+                                     mass,
+                                     fric,
+                                     self.radius*np.array(
+                                         [np.sin(point*degrees),np.cos(point*degrees),0.]),
+                                      [np.pi/2.,point*degrees ,0]
+                                      , in_vel, in_rot, des)
+                               for point in np.arange(points_per_base)]
+                              ,dtype = Plane)
+
+        #Definition of the top and bottom vertex
+        vertex_top_bottom_face = np.sqrt(self.radius**2 + self.plane_side**2)* np.array([[np.cos(deg*degrees+np.pi/4),
+                                                         np.sin(deg*degrees+np.pi/4.),
+                                                         0] for deg in np.arange(points_per_base)])
+        #Bottom first then top faces. Uses the edges and vertex defined before
+        top_bottom = np.array([Plane(2,
+                                     mass,
+                                     fric,
+                                     [0,0,i*self.height],[(i-1)*np.pi/2,0,0],
+                                     in_vel,
+                                     in_rot,
+                                     des,
+                                     vertex_top_bottom_face)
+                                     for i in [-1,1]], dtype=Plane)
+        self.faces = np.append(self.faces, top_bottom, axis=0)
+        self.faces_local_position = np.array([face.get_position() for face in self.faces])
+    """
+    def __init_faces(self, in_vel, in_rot, fric, des, mass = 0.):
+#        Defines the position of top-bottom and lateral faces of a regular body.
+#        It divides the azimut angle in equal parts by the number of faces.
+#        Sets self.plane_side variable that depends on the angle.
+
+        points_per_base = self.number_of_lateral_faces
+        degrees = 2.0*np.pi  / points_per_base #Azimut angle
+        self.plane_side = np.tan(degrees/2.)*self.radius #Length of lateral sides
+
+#        Creates lateral faces. Defines the initial point of everyone and makes two rotations:
+        [0., -pi/2, degrees*point], point is the step.
+#        Rotation on Y axis is fixed so the planes sides surface vectors points outside of
+#        the body. And Z axis rotation gives the angular position of every face to cover the body
+
         self.faces = np.array([Plane([self.height, self.plane_side,0],
                                      mass,
                                      fric,
@@ -67,9 +110,6 @@ class Cilinder(Body):
         vertex_top_bottom_face = np.sqrt(self.radius**2 + self.plane_side**2)* np.array([[np.cos(deg*degrees+np.pi/4),
                                                          np.sin(deg*degrees+np.pi/4.),
                                                          0] for deg in np.arange(points_per_base)])
-        #vertex_top_bottom_face = np.sqrt(self.radius**2 + self.plane_side**2)* np.array([[np.cos(deg*degrees),
-        #                                                 np.sin(deg*degrees),
-        #                                                 0] for deg in np.arange(points_per_base)])
         #Bottom first then top faces. Uses the edges and vertex defined before
         top_bottom = np.array([Plane(2,
                                      mass,
@@ -80,18 +120,9 @@ class Cilinder(Body):
                                      des,
                                      vertex_top_bottom_face)
                                      for i in [-1,1]], dtype=Plane)
-        #top_bottom = np.array([Plane(2,
-        #                             mass,
-        #                             fric,
-        #                             [0,0,i*self.height],[(i-1)*np.pi/2,0,degrees/2.],
-        #                             in_vel,
-        #                             in_rot,
-        #                             des,
-        #                             vertex_top_bottom_face)
-        #                             for i in [-1,1]], dtype=Plane)
         self.faces = np.append(self.faces, top_bottom, axis=0)
         self.faces_local_position = np.array([face.get_position() for face in self.faces])
-
+    """
     def __vertex_to_object__index_edges(self ):
         """
         Adds vertex and edges from the faces to the Object (Cilinder or child)
@@ -126,8 +157,11 @@ class Cilinder(Body):
 if __name__ == '__main__':
     diameter = 1
     height = 2
-    faces = 120
-    cube = Cilinder(diameter,height,faces,4,0,[10,10,10], [0,1,1], [0,0,0], [0,0,0], False)
+    faces = 20
+    cube = Cilinder(diameter,height,faces,4,0,[0,0,0], [1,1,1], [0,0,0], [0,0,0], False)
+    from object_class_module import render
+    render([cube], 0)
+    """
     cube_volume_numeric = cube.volume_calc(500, 10)
     cube_volume_analitic = np.pi*(diameter/2.)**2*height
     relative_error_v = np.abs(cube_volume_numeric - cube_volume_analitic)/np.abs(cube_volume_analitic)*100
@@ -139,3 +173,4 @@ if __name__ == '__main__':
     relative_error_s = np.abs(cube_surface_numeric - cube_surface_analitic)/np.abs(cube_surface_analitic)*100
     print(f"Cube numeric surface = {cube_surface_numeric}; Cube analitic surface = {cube_surface_analitic}")
     print(f"Relative error [%] = {relative_error_s}")
+    """
