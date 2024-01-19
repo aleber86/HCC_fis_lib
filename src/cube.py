@@ -31,28 +31,38 @@ class Prisma(Cilinder):
 
 if __name__ == '__main__':
     from object_class_module import render
-    size = 1
-    cube = Cube(size,1,0,[0,0,0],[0,0,0],[1,1,1],[0,1,1], False)
+    np.random.seed(1457777)
+    size = 4
+    diameter = 2
+    faces = 20
+    #cube = Cube(size,1,0,[0,0,0],[1,1,1],[0,0,0],[3,1,-2], False)
+    cube = Cilinder(diameter, size,20,1,0,[0,0,0],[1,1,1],[0,0,0],[3,1,-2], False)
+    cube_volume_analitic = np.pi*diameter + 2*np.pi*(diameter/2)**2
     objects = [cube]
-    for t in range(0,100):
-        cube_volume_numeric = cube.volume_calc(1000, 10)
+#    for t in range(0,100):
+    t = np.float64(0.)
+    while True:
+        cube_volume_numeric = cube.volume_calc(100000, 1)
         pos = cube.get_angular_position()
         rot = cube.get_rotation_velocity()*0.01*t + pos
         cube.set_angular_position(rot)
         pos_l = cube.get_position()
         pos_l_f = cube.get_velocity()*0.01*t + pos_l
         cube.set_position(pos_l_f)
-        if t%10==0:
-            render(objects, t)
+        #if t%10==0:
+        #render(objects, t)
+        print(cube.get_angular_position())
     #render(objects, 1)
-        cube_volume_analitic = size**3
         relative_error_v = np.abs(cube_volume_numeric - cube_volume_analitic)/np.abs(cube_volume_analitic)*100
         print(f"Cube numeric volume = {cube_volume_numeric}; Cube analitic volume = {cube_volume_analitic}")
         print(f"Relative error [%] = {relative_error_v}")
-        print()
+    #    print()
+        """
         cube_surface_numeric = cube.total_surface_calc()
         cube_surface_analitic = 6*size**2
         relative_error_s = np.abs(cube_surface_numeric - cube_surface_analitic)/np.abs(cube_surface_analitic)*100
         print(f"Cube numeric surface = {cube_surface_numeric}; Cube analitic volume = {cube_surface_analitic}")
         print(f"Relative error [%] = {relative_error_s}")
+        """
         cube.update(0)
+        t+=1
