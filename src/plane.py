@@ -3,7 +3,7 @@ from body import Body
 
 
 class Plane(Body):
-    """Primitive mesh body. Child of Body class."""
+    """Primitive mesh body. 2D plane. Child of Body class."""
     def __init__(self, size, mass,  friction, init_pos,
                  init_angular, init_vel, init_rot, destructive,
                  vertex_input = None,
@@ -40,13 +40,24 @@ class Plane(Body):
         self.sides_local= None
         self.vector_surface()
 
-    def volume_calc(self):
+    def volume_calc(self) -> None:
+        """Function overloads Body.volume_calc function. 2D plane has no volume"""
         pass
 
-    def update_faces(self):
+    def update_faces(self) -> None:
+        """Function overloads Body.update_faces function. 2D plane itself is a face"""
         pass
 
-    def surface_calc(self, quant = 1000, n = 20):
+    def surface_calc(self, quant = 1000, n = 20) -> float:
+        """Function calculates the surface using a Monte Carlo method.
+
+        Args:
+            quant : number of random points to check in/out of face.
+            n : number of samples.
+
+        Returns:
+            float : mean of samples.
+        """
         surface_array = []
         for _ in np.arange(n):
             counter = [0]
@@ -67,7 +78,17 @@ class Plane(Body):
 
 
 
-    def _inside_of_plane(self, point, array_vertex, counter):
+    def _inside_of_plane(self, point, array_vertex, counter) -> bool:
+        """Function checks if a point is inside a plane
+
+        Args:
+            point : array (vector) to check if point is inside.
+            array_vertex : array of vertex points of plane
+            counter : one element list; accumulator. Number of points inside
+
+        Returns:
+            bool
+        """
         center_to_point = point
         inside = False
         for vertex in array_vertex:
@@ -86,10 +107,16 @@ class Plane(Body):
         return inside
 
 
-    def vector_surface(self):
+    def vector_surface(self) -> None:
         """Surface vectors (versor) are reffered to global system. It will auto-rotate
            Body class method OVERLOADED.
            Sets sides of the plane
+
+           Args:
+                None
+
+            Returns:
+                None
         """
         vertex_on_global = self.get_vertex_position() #Vertex on global system
         self.sides = np.array([vertex_on_global[self.edges_indexes[index][1]]
@@ -99,7 +126,8 @@ class Plane(Body):
         vector_cross_product = np.cross(self.sides[0], self.sides[1])
         self.surface_vector = vector_cross_product / np.sqrt(np.dot(vector_cross_product, vector_cross_product))
         self.surface_vector = self.surface_vector + self.position
-    def get_surface_vectors(self):
+
+    def get_surface_vectors(self) -> np.array:
         return self.surface_vector
 
 

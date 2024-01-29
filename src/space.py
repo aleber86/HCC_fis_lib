@@ -1,10 +1,7 @@
 import numpy as np
-from object_class_module import render
 from body import Body
 from particle import Particle
-from cube import Cube
 from scipy.integrate import odeint
-from scipy.optimize import bisect
 
 class Space:
     """Space class controls and updates every object that is subscribed
@@ -31,7 +28,15 @@ class Space:
 
 
 
-    def subscribe_objects_into_space(self, object_to_subscribe):
+    def subscribe_objects_into_space(self, object_to_subscribe) -> None:
+        """Method subscribes objects into instance to iterate and update
+
+        Args:
+            object_to_subscribe : object
+
+        Returns:
+            None
+        """
         self.object_subscribed = np.append(self.object_subscribed, object_to_subscribe)
         for index, objects in enumerate(self.object_subscribed):
             for index_2, objects_2 in enumerate(self.object_subscribed):
@@ -41,14 +46,31 @@ class Space:
 
 
 
-    def unsuscribe_objects(self, object_to_unsuscribe : list or tuple or np.ndarray or object = None):
+    def unsuscribe_objects(self, object_to_unsuscribe :\
+                           list or tuple or np.ndarray or object = None) -> None:
         """Function removes elements subscribed to Space instance.
-        It can recive iterable object with objects to unsuscribe"""
+        It can recive iterable object with objects to unsuscribe
+
+        Args:
+            object_to_unsuscribe : elements to delete in space instance
+
+        Returns:
+            None
+        """
+
         if self.object_subscribed.size>0:
             res = np.apply_along_axis(lambda x : [el.get_state() for el in x] ,0, self.object_subscribed)
             self.object_subscribed = np.delete(self.object_subscribed, res)
 
     def get_objects_in_space(self):
+        """Getter method. Gets objects in space
+
+        Args:
+            None
+
+        Returns:
+            np.array; elements in space.
+        """
         return self.object_subscribed
 
 
@@ -71,7 +93,18 @@ class Space:
         print(self.__dict__)
         return string
 
-    def collision_detect(self, first, second):
+    def collision_detect(self, first : Body or Particle,
+                         second : Body or Particle) -> bool:
+        """Method evaluates conditions for collisions and apply changes
+        on velocity and angular velocity of objects suscribed.
+
+        Args:
+            first : first object to test.
+            second : second object to test.
+
+        Returns:
+            bool
+        """
         collision = False
         if isinstance(first, Particle) and isinstance(second, Particle):
             sphere_first = first.get_position()
@@ -123,7 +156,18 @@ class Space:
                     if collide_edge or collision_bool: break
         return collision
 
-    def edge_to_edge_collision(self, first : Body, second : Body):
+    def edge_to_edge_collision(self, first : Body, second : Body) -> tuple:
+        """Method evaluates collision between edges. Implemented for
+        parallel edges and non perpendicular
+
+        Args:
+            first : first object to tests.
+            second : second object to test.
+
+        Returns:
+            tuple : collide (bool), face_index (int), position_of_impact (np.array)
+
+        """
         face_ok_to_collide = first.get_faces()
         edges_to_collide = second.get_edges()
         point_of_impact = None
@@ -145,6 +189,20 @@ class Space:
 
     def __linear_system_solver(self, side_1 : np.array, side_2: np.array,
                                first : Body, second : Body) -> (bool, np.array):
+        """Method evaluates if edges are in collision state, if so, calculates
+        the point of impact.
+
+        Args:
+            side_1 : edge [base, point].
+            side_2 : edge [base, point].
+            first : first object to test.
+            second : second object to test.
+
+        Returns:
+            tuple : (bool, point of impact)
+
+        """
+
 
         key = f"{first}{second}"
         result = (False, np.zeros((3,)))
@@ -215,6 +273,17 @@ class Space:
 
 
     def __overlap_box(self, this : Body, other : Body or Particle) -> bool:
+        """Method evaluates overlap between hit boxes. If overlaping, then
+        other methods takes place.
+
+        Args:
+            this : first object to get hit box.
+            other : second object to get hit box.
+
+        Returns:
+            bool
+
+        """
 
         this_position = this.get_position()
         other_position = other.get_position()
@@ -239,8 +308,18 @@ class Space:
         return bool(overlap_result)
 
     def point_to_face_collision(self, body_object : Body,
-                                particle_object: Particle or Body
-                                ):
+                                particle_object: Particle or Body) -> tuple:
+
+        """Method evaluates if a point is hitting a face (Plane class).
+
+        Args:
+            body_object : Body class object to get faces.
+            particle_object : Particle class to test collision
+
+        Returns:
+            tuple : bool, index of face, point of impact
+        """
+
         #V.2 of function
         vertex_number = 0
         if isinstance(particle_object, Particle):
@@ -281,7 +360,18 @@ class Space:
                     return True,face_index,vertex_number
         return False, 0, 0
 
-    def body_to_body_faces(self, first : Body, second : Body):
+    def body_to_body_faces(self, first : Body, second : Body) -> tuple:
+        """Method evaluates if faces may collide.
+
+        Args:
+            first : Body to get faces.
+            second : body to get faces.
+
+        Returns:
+            tuple : (np.array: first faces in collision,
+                    np.array: second faces in collision)
+
+        """
         first_position = first.get_position()
         second_position = second.get_position()
         difference_positions = second_position - first_position
@@ -301,11 +391,26 @@ class Space:
 
     def momentum_collision_heterogeneous(self, first : Body,
                                          second : Particle or Body ,
-                                         face_index_first : int, face_index_second : int = None,
-                                         vertex_index = None, edge_position = None,
-                                         elastic = True):
+                                         face_index_first : int,
+                                         face_index_second : int = None,
+                                         vertex_index = None,
+                                         edge_position = None,
+                                         elastic = True) -> None:
 
-        """Function to Calculate momentum after collision"""
+        """Function to calculates new velocity of body center and
+        angular velocity after collision
+
+        Args:
+            first : Body object to collide.
+            second : Body or Particle object to collide with first.
+            face_index_first : int; sets index of face impact on first.
+            face_index_second : int; sets index of face impact on second (NotImplemented).
+            vertex_index : int; if is not None, vertex defines point of impact on first.
+            edge_position : np.array; if is not None; sets point of impact.
+            elastic : bool; True -> elastic collision; False -> inelastic (NotImplemented)
+
+
+        """
         if elastic:
             e = 1
         else:
@@ -378,8 +483,17 @@ class Space:
         second.set_rotation_velocity(p_new_a_rot)
 
 
-    def momentum_collision_partice_particle(self, first, second):
-        """ELASTIC COLLISION"""
+    def momentum_collision_partice_particle(self, first, second) -> None:
+        """Method defines elastic collision between particles. Sets new
+        velocity of each.
+
+        Args:
+            first : Particle to collide.
+            second : Particle to collide.
+
+        Returns:
+            None
+        """
         first_velocity = first.get_velocity()
         second_velocity = second.get_velocity()
         first_mass = first.get_mass()
@@ -402,17 +516,47 @@ class Space:
         first.set_velocity(first_new_velocity + v_cm)
         second.set_velocity(second_new_velocity + v_cm)
 
-    def force(self, y, t, mass):
-        """ f = m * a -> f = m * dv/dt"""
+    def force(self, y, t, mass) -> np.array:
+        """Defines derivative of velocity. f = m * a -> f = m * dv/dt
+
+        Args:
+            y : np.array; initial conditions.
+            t : float; independent variable
+
+        Returns:
+            np.array
+
+        """
         f = np.array([0,0,np.cos(y[2])])
         dv_dt = f/mass
         return dv_dt
 
     def posi(self, y, t, vel0):
+        """Defines derivative of position.
+
+        Args:
+            y : np.array; initial conditions of y.
+            t : float; independent variable
+            vel0 : initial conditions
+
+        Returns:
+            np.array
+
+        """
         dr_dt = vel0
         return dr_dt
 
-    def integrate(self, step):
+    def integrate(self, step : float) -> None:
+        """Method integrates velocity and position over time. Sets new
+        arguments for every object subscribed in Space instance.
+
+        Args:
+            step : float; independent variable step
+
+        Returns:
+            None
+
+        """
         for obj in self.object_subscribed:
             t = np.linspace(start=self.time, stop=self.time + step, num=501)
             if isinstance(obj, Body):
@@ -429,114 +573,27 @@ class Space:
             else:
                 obj.set_position(r[-1])
 
-    def update(self, time):
-        """Updates time, position and velocity for every object using odeint from Scipy. Time span is
-        calculated with numpy linspace 10 elements, odeint calculates the interval and takes the last element
-        to set new state for every object subscribed. If an element state is False then it will be unsuscribed."""
+    def update(self, time : float) -> int:
+        """Updates time, position and velocity for every object using self.integrate method.
+        Evaluates collisions between object and execute updates method of each.
 
-        np.array([obj.update() for obj in self.object_subscribed])
+        Args:
+            time : float; time step of independent variable.
+
+        Returns:
+            int : sum of collisions
+        """
+
         collision = np.array([self.collision_detect(obj, sec)
                       for index,obj in enumerate(self.object_subscribed)
                       for sec in self.object_subscribed[index:]
                       if obj!= sec])
 
         total_collision = np.sum(collision)
-        np.array([obj.update() for obj in self.object_subscribed])
         self.integrate(time)
         self.time += time
+        np.array([obj.update() for obj in self.object_subscribed])
+
         return total_collision
-
-if __name__ == '__main__':
-    from cilinder import Cilinder
-    def ang_momentum(element):
-
-        mass = element.get_mass()
-        position = element.get_position()
-        velocity = element.get_velocity()
-        inertia_t = element.get_inertia_tensor()
-        rotation = element.get_rotation_velocity()
-        angular_momentum = np.matmul(inertia_t, rotation)
-        angular_momentum = np.reshape(np.array(angular_momentum), (3,))
-        momentum = np.cross(position, mass*velocity) + angular_momentum
-        return momentum
-
-    def energy(element):
-        mass = element.get_mass()
-        velocity = element.get_velocity()
-        inertia_t = element.get_inertia_tensor()
-        rotation = element.get_rotation_velocity()
-        angular_momentum = np.matmul(inertia_t, rotation)
-        angular_momentum = np.reshape(np.array(angular_momentum), (3,))
-        en = 0.5*(np.dot(angular_momentum, rotation) + mass*np.dot(velocity,velocity) )
-        return en
-
-
-    #file = open("data.dat", "w")
-    np.random.seed(456791)
-    dim = 1
-    size = 3e0
-    vel = np.array([.0,2,.0])
-    #mass_1 = 1.e-25
-    #mass_2 = 6
-    mass_1 = 5
-    mass_2 = 10
-    space_instance = Space()
-#    particles = [Particle(size,mass_1,[-.1+0,-4.1+0,0+.2],vel),
-#                 Cube(4.,mass_2,0,[0.,0.,0.],[0.,0.,0],[0.,0,0],[0, 0.,0.], False)]
-    particles = [Cube(2, mass_1, 0, [1,2.7,1], [0,0,0], [0.0,0.0,0], [0,0,0], False),
-                 Cube(size,mass_2, 0, [1+0.3,1-2,1+0.3], [0,0,0], vel, [3,0,3], False)]
-    """
-    particles = np.array([Particle(size,np.random.uniform(1,20),
-                                   [np.random.uniform(-0.5,0.5),
-                                    np.random.uniform(-0.5,0.5),
-                                    np.random.uniform(-0.5,0.5)],
-                                   [np.random.uniform(-0.5,0.5),
-                                    np.random.uniform(-0.5,0.5),
-                                    np.random.uniform(-0.5,0.5)])
-                          for _ in np.arange(100)])
-    """
-#    particles  = np.append(particles, [Cube(2,mass_2,0,[2,0,0],[0,0,0],[0,0,0],[0,0,0], False)])
-    space_instance.subscribe_objects_into_space(particles)
-    norm = np.linalg.norm(vel)
-    diff = size/(norm*1000)
-    #diff = 0.01
-    step = diff
-    cond = True
-    time_start = 0.0
-    counter = 0
-    collision = 0
-    to_text = ""
-    objects = space_instance.get_objects_in_space()
-    np.array([obj.update() for obj in objects])
-    total_energy_0_a = np.array([energy(obj) for obj in objects])
-    total_energy_0 = np.sum(total_energy_0_a)
-    linear_momentum = np.array([obj.linear_momentum()
-                                       for obj in objects])
-
-    total_p = np.linalg.norm(np.sum(linear_momentum,0))
-    angular_momentum = np.array([ang_momentum(obj) for obj in objects])
-    total_L = np.linalg.norm(np.sum(angular_momentum,0))
-    while cond:
-        time_start += step
-        if counter%50 == 0:
-            linear_momentum = np.array([obj.linear_momentum()
-                                       for obj in objects])
-            e_p = np.abs(np.linalg.norm(np.sum(linear_momentum,0))-total_p)/np.abs(total_p)*100
-            angular_momentum = np.array([ang_momentum(obj) for obj in objects])
-            e_L = np.abs(np.linalg.norm(np.sum(angular_momentum,0))-total_L)/np.abs(total_L)*100
-            total_energy = np.array([energy(obj) for obj in objects])
-            e_E = 100*np.abs(total_energy_0-np.sum(total_energy))/np.abs(total_energy_0)
-            render(space_instance.get_objects_in_space(), counter, False)
-            """
-            if e_p >0. or e_L>0. or e_E >0:
-                print(r"Relative error % linear momentum:", \
-                      f"{e_p}   in: {total_p}  fin: {np.linalg.norm(np.sum(linear_momentum,0))}")
-                print(r"Relative error % angular momentum :" \
-                      f"{e_L}  in: {total_L}  fin: {np.linalg.norm(np.sum(angular_momentum,0))}")
-                print(r"Relative error % energy :" \
-                      f"{e_E}  in :{total_energy_0}  fin: {np.sum(total_energy)}")
-            """
-        collision = space_instance.update(step)
-        counter+=1
 
 
