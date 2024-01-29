@@ -28,31 +28,30 @@ class Cilinder(Body):
                       init_angular, init_vel, init_rot,
                       destructive, edges_indexes)
         self.vector_surface()
+        self.inertia_tensor_original = None
+        self.inertia_tensor_inverse_original = None
         self.__inertia_tensor()
+
 
     def __inertia_tensor(self):
         diag_1_1 = 1/12 * self.mass * (3*self.radius**2 + self.height**2)
         diag_2_2 = diag_1_1
         diag_3_3 = 0.5 * self.mass * self.radius
-        self.inertia_tensor = np.array([[diag_1_1,0,0], [0,diag_2_2,0], [0,0,diag_3_3]])
-        self.inertia_tensor_inverse = np.linalg.inv(self.inertia_tensor)
-
+        self.inertia_tensor_original = np.array([[diag_1_1,0,0], [0,diag_2_2,0], [0,0,diag_3_3]])
+        self.inertia_tensor_inverse_original = np.linalg.inv(self.inertia_tensor_original)
+    """
     def __init_faces(self, in_vel, in_rot, fric, des, mass = 0.):
-        """
-        Defines the position of top-bottom and lateral faces of a regular body.
-        It divides the azimut angle in equal parts by the number of faces.
-        Sets self.plane_side variable that depends on the angle.
-        """
+        #Defines the position of top-bottom and lateral faces of a regular body.
+        #It divides the azimut angle in equal parts by the number of faces.
+        #Sets self.plane_side variable that depends on the angle.
         points_per_base = self.number_of_lateral_faces
         degrees = 2.0*np.pi  / points_per_base #Azimut angle
         self.plane_side = np.tan(degrees/2.)*self.radius #Length of lateral sides
 
-        """
-        Creates lateral faces. Defines the initial point of everyone and makes two rotations:
-        [0., -pi/2, degrees*point], point is the step.
-        Rotation on Y axis is fixed so the planes sides surface vectors points outside of
-        the body. And Z axis rotation gives the angular position of every face to cover the body
-        """
+        #Creates lateral faces. Defines the initial point of everyone and makes two rotations:
+        #[0., -pi/2, degrees*point], point is the step.
+        #Rotation on Y axis is fixed so the planes sides surface vectors points outside of
+        #the body. And Z axis rotation gives the angular position of every face to cover the body
         #dimensions = [self.height, self.plane_side,0]
         dimensions = [self.plane_side, self.height, 0]
         self.faces = np.array([Plane(dimensions,
@@ -92,7 +91,7 @@ class Cilinder(Body):
         self.plane_side = np.tan(degrees/2.)*self.radius #Length of lateral sides
 
 #        Creates lateral faces. Defines the initial point of everyone and makes two rotations:
-        [0., -pi/2, degrees*point], point is the step.
+#        [0., -pi/2, degrees*point], point is the step.
 #        Rotation on Y axis is fixed so the planes sides surface vectors points outside of
 #        the body. And Z axis rotation gives the angular position of every face to cover the body
 
@@ -122,7 +121,6 @@ class Cilinder(Body):
                                      for i in [-1,1]], dtype=Plane)
         self.faces = np.append(self.faces, top_bottom, axis=0)
         self.faces_local_position = np.array([face.get_position() for face in self.faces])
-    """
     def __vertex_to_object__index_edges(self ):
         """
         Adds vertex and edges from the faces to the Object (Cilinder or child)
