@@ -15,9 +15,24 @@ class Particle:
         self.remove = False #Existence: {True : subscribe, False : unsuscribe}
         self.friction = friction
         self.hit_box_global = None
+        self.angular_rotation = np.array(np.zeros(3,), dtype=_wp)
         self.__collision_box()
+        I_xx = 2./5.*self.mass*self.size_radius**2
+        self.inertia_tensor = np.matrix([[I_xx,0,0],[0,I_xx,0],[0,0,I_xx]])
+        self.inertia_tensor_inverse = np.linalg.inv(self.inertia_tensor)
+        self.inertia_tensor_original = self.inertia_tensor
+        self.rotational_velocity = np.array([0,0,0])
 
+    def get_inertia_tensor_inverse(self):
+        return self.inertia_tensor_inverse
 
+    def get_inertia_tensor(self):
+        return self.inertia_tensor
+    def set_rotation_velocity(self, rotation):
+        self.rotational_velocity = rotation
+
+    def get_rotation_velocity(self):
+        return self.rotational_velocity
 
     def get_external_force(self):
         return self.external_force_interaction
@@ -84,14 +99,27 @@ class Particle:
 
     def kinetic_energy(self):
         velocity = self.get_velocity()
-        k_energy = self._wp(0.5) *self.mass * np.dot(velocity, velocity)
-        return k_energy
+        k_energy = self._wp(0.5) *self.mass * np.dot(velocity,velocity)
+        rot = 0.5*np.dot(self.rotational_velocity, self.angular_momentum())
+        return k_energy + rot
 
+    def angular_momentum(self):
+#        ang_rot = np.cross(self.position, self.mass*self.velocity)
+        if np.linalg.norm(self.rotational_velocity)>1.e-15:
+
+            rotational_velocity = np.reshape(self.rotational_velocity, (3,1))
+            ang_rot = np.matmul(self.inertia_tensor_inverse, rotational_velocity)
+            ang_rot = np.reshape(np.array(ang_rot), (3,))
+        else:
+            ang_rot = np.cross(self.position, self.mass*self.velocity)
+        return  ang_rot
 
     def update(self, time=0.1):
-        self.set_momentum()
         self.__collision_box()
 
+    def linear_momentum(self):
+        lin_mom = self.mass * self.velocity
+        return lin_mom
 
 if __name__ == '__main__':
     part = Particle(0,[0,0,0], [1,1,1])

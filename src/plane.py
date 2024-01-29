@@ -69,6 +69,7 @@ class Plane(Body):
 
     def _inside_of_plane(self, point, array_vertex, counter):
         center_to_point = point
+        inside = False
         for vertex in array_vertex:
             bool_array = []
             vertex_to_point = point - vertex
@@ -80,6 +81,9 @@ class Plane(Body):
 
         if np.sum(bool_array)!=len(array_vertex):
             counter[0] = counter[0] + 1
+            inside = True
+
+        return inside
 
 
     def vector_surface(self):

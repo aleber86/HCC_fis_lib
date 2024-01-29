@@ -37,22 +37,27 @@ class Body:
         self.local_vertex = _wp(vertex)
         self.global_vertex = 0.0
         self.array_point = np.array([[0,0,0]])
+        self.inertia_tensor = np.zeros((3,3), dtype = _wp)
+        self.inertia_tensor_inverse = np.zeros((3,3), dtype = _wp)
+        self.inertia_tensor_original = np.zeros((3,3), dtype = _wp)
+        self.inertia_tensor_inverse_original = np.zeros((3,3), dtype = _wp)
         self.__collision_box()
         self.__vertex_position()
         self.edges = self.edges_change()
-        self.inertia_tensor = np.zeros((3,3), dtype = _wp)
-        self.inertia_tensor_inverse = np.zeros((3,3), dtype = _wp)
         self.axial_vectors_to_faces = None
         self.state = True
         self.surface_vector = None
-        self.change_variable_state_position = False
-        self.change_variable_state_angular = False
-        self.change_variable_state_rotation_v = False
-        self.change_variable_state_vel = False
+        self.change_variable_state_position = True
+        self.change_variable_state_angular = True
+        self.change_variable_state_rotation_v = True
+        self.change_variable_state_vel = True
         self._tolerance = _wp(self._tolerance)
         self.update_faces()
         self.volume = 0.0 #Re-defined in volume_calc()
         self.area = 0.0 #Re-defined in total_surface_calc
+        self.collision_response = False
+        self.last_vertex_rotation = self.local_vertex
+        self.last_hit_box_rotation = self.hit_box_local
 
 
     def update_faces(self):
@@ -131,6 +136,9 @@ class Body:
         """
         dens = self.mass/self.volume
         return dens
+    def get_collision_response(self):
+        return self.collision_response
+
     def get_mass(self):
         return self.mass
 
@@ -175,6 +183,9 @@ class Body:
 
     def get_offset_rotation_axis(self):
         return self.offset_rotation_axis
+
+    def set_collision_response(self, state : bool):
+        self.collision_response = state
 
     def set_state(self, state):
         self.state = state
@@ -221,35 +232,30 @@ class Body:
     def set_vertex_position(self, position_of_vertex : np.array):
         self.global_vertex = position_of_vertex
 
-    def _vector_rotation(self, vector_to_rotate, angular_deviation, origin):
-        """Rotation matrix = R_z(alpha)*R_y(beta)*R_x(gamma) | RotMat * VECTOR"""
+    def rotation_matrix(self, angular_deviation):
+        psi, theta, phi = angular_deviation
+        row_1 = [np.cos(theta)*np.cos(phi), np.sin(psi)*np.sin(theta)*np.cos(phi)-\
+                 np.cos(psi)*np.sin(phi), np.cos(psi)*np.sin(theta)*np.cos(phi)+\
+                 np.sin(psi)*np.sin(phi)]
+        row_2 = [np.cos(theta)*np.sin(phi), np.sin(psi)*np.sin(theta)*np.sin(phi)+\
+                 np.cos(psi)*np.cos(phi), np.cos(psi)*np.sin(theta)*np.sin(phi)-\
+                 np.sin(psi)*np.cos(phi)]
+        row_3 = [-np.sin(theta), np.sin(psi)*np.cos(theta), np.cos(psi)*np.cos(theta)]
 
-        theta, psi, phi = angular_deviation
-        row_1 = [np.cos(psi)*np.cos(phi) - np.cos(theta)*np.sin(phi)*np.sin(psi),
-                 np.cos(psi)*np.sin(phi) + np.cos(theta)*np.cos(phi)*np.sin(psi),
-                 np.sin(psi)*np.sin(theta)]
-        row_2 = [-np.sin(psi)*np.cos(phi)-np.cos(theta)*np.sin(phi)*np.cos(psi),
-                 -np.sin(psi)*np.sin(phi)+np.cos(theta)*np.cos(phi)*np.cos(psi),
-                 np.cos(psi)*np.sin(theta)]
-        row_3 = [np.sin(theta)*np.sin(phi), -np.sin(theta)*np.cos(phi), np.cos(theta)]
 
         rotational_matrix = np.matrix([row_1, row_2, row_3], dtype=self._wp)
-        """
-        gamma, beta, alpha = angular_deviation
-        rotational_matrix = np.matrix([[np.cos(alpha)*np.cos(beta),
-                                       np.cos(alpha)*np.sin(beta)*np.sin(gamma) - np.sin(alpha)*np.cos(gamma),
-                                       np.cos(alpha)*np.sin(beta)*np.cos(gamma)+ np.sin(alpha)*np.sin(gamma)],
-                                      [np.sin(alpha)*np.cos(beta),
-                                       np.sin(alpha)*np.sin(gamma)+np.cos(alpha)*np.cos(gamma),
-                                       np.sin(alpha)*np.sin(beta)*np.cos(gamma)-np.cos(alpha)*np.sin(gamma)],
-                                      [-np.sin(beta), np.cos(beta)*np.sin(gamma), np.cos(beta)*np.cos(gamma)]],
-        dtype = self._wp)
-        """
-        diff = vector_to_rotate - origin
+        return rotational_matrix
 
+    def _vector_rotation(self, vector_to_rotate, angular_deviation, origin, vector=True):
+        """Rotation matrix = R_z(alpha)*R_y(beta)*R_x(gamma) | RotMat * VECTOR"""
+
+
+        rotational_matrix = self.rotation_matrix(angular_deviation)
+        diff = vector_to_rotate - origin
         row = diff.shape[0]
         diff_column = np.reshape(diff, (row, 1))
         vector_rotated = np.matmul(rotational_matrix, diff_column)
+
         return vector_rotated
 
     def __vertex_position(self):
@@ -263,28 +269,42 @@ class Body:
         else:
             origin = self.offset_rotation_axis
 
+        angular_update_direction = self.get_angular_position()
+#        if True:
         if self.change_variable_state_angular:
 
-            angular_update_direction = self.get_angular_position()
             vertex_update_position = np.apply_along_axis(self._vector_rotation, 1, self.local_vertex,
                                                          angular_update_direction, origin )
-            vertex_update_position = np.array(vertex_update_position+center_update_position)
-            self.set_vertex_position(vertex_update_position)
+            vertex_update_position = np.array(vertex_update_position)
             hit_box_update_position = np.apply_along_axis(self._vector_rotation, 1, self.hit_box_local,
                                                          angular_update_direction, origin )
 
-            hit_box_update_position = np.array(hit_box_update_position+center_update_position)
-            self.hit_box_global = hit_box_update_position
+            hit_box_update_position = np.array(hit_box_update_position)
+            self.last_vertex_rotation = vertex_update_position
+            self.last_hit_box_rotation = hit_box_update_position
+        #else:
+        #    vertex_update_position = self.last_vertex_rotation
+        #    hit_box_update_position = self.hit_box_local + center_update_position
+        self.hit_box_global = self.last_hit_box_rotation + center_update_position
+        self.set_vertex_position(self.last_vertex_rotation + center_update_position)
         if self.faces is not None:
             positions_local= self.faces_local_position
-            if self.change_variable_state_angular:
+            if True:
+                R = self.rotation_matrix(angular_update_direction)
+                R_T = np.transpose(R)
+                self.inertia_tensor = np.matmul(np.matmul(R,self.inertia_tensor_original),R_T)
+                self.inertia_tensor_inverse = np.matmul(np.matmul(R,self.inertia_tensor_inverse_original),R_T)
+
                 position_new_local = np.apply_along_axis(self._vector_rotation, 1, positions_local,
                                                          angular_update_direction, origin)
 
                 position_new_global = position_new_local
-                for vec,face in zip(position_new_global,self.faces):
-                    vec1 = np.reshape(np.array(vec), (3,))
-                    face.set_position(vec1+center_update_position)
+            else:
+                position_new_global = positions_local
+            for vec,face in zip(position_new_global,self.faces):
+                vec1 = np.reshape(np.array(vec), (3,))
+                face.set_position(vec1+center_update_position)
+
     def __define_edges(self, indexes):
         edge = np.array([self.global_vertex[indexes[0]], self.global_vertex[indexes[1]]], dtype = self._wp)
         return edge
@@ -314,7 +334,8 @@ class Body:
         max_x = np.max(self.local_vertex[:,0])
         max_y = np.max(self.local_vertex[:,1])
         max_z = np.max(self.local_vertex[:,2])
-        offset = (np.abs(max_x) + np.abs(max_y) + np.abs(max_z))/3 * 0.5
+        offset = (np.abs(max_x) + np.abs(max_y) + np.abs(max_z))/3 * 1
+        max_x += offset
         max_y += offset
         max_z += offset
         min_x = np.min(self.local_vertex[:,0]) - offset
@@ -332,19 +353,20 @@ class Body:
 
     def rotational_energy(self):
         rotational_velocity = self.rotation_velocity
-        angular_momentum = self.angular_momentum()
+        angular_momentum = np.reshape(np.array(self.angular_momentum()),(3,))
+        rotational_velocity = np.reshape(np.array(rotational_velocity), (3,))
         rot_energy = 0.5 * np.dot(rotational_velocity, angular_momentum)
         return rot_energy
 
     def linear_energy(self):
         linear_velocity = self.get_velocity()
         mass = self.mass
-        lin_energy = 0.5 *mass* np.dot(linear_velocity,linear_velocity)
+        lin_energy = 0.5 *mass* np.dot(linear_velocity, linear_velocity)
         return lin_energy
 
     def angular_momentum(self):
         rotational_velocity = self.rotation_velocity
-        rotational_vector = np.reshape(rotational_velocity, (3,1))
+        rotational_vector = rotational_velocity
         angular_momentum_unshape = np.matmul(self.inertia_tensor, rotational_vector)
         angular_momentum = np.reshape(angular_momentum_unshape, (3,))
         return angular_momentum
@@ -355,9 +377,12 @@ class Body:
     def kinetic_energy(self):
         rotational_energy = self.rotational_energy()
         kin_en_lin = self.linear_energy()
-        return kin_en_lin + rotational_energy
+        return rotational_energy + kin_en_lin
 
-    def update(self, delta_time : float):
+    def inertia_tensor_rotation(self):
+        pass
+
+    def update(self):
         self.__vertex_position()
         edge = self.edges_change()
         self.set_edges(edge)
