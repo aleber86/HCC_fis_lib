@@ -20,7 +20,7 @@ def render(objects_array, name, rec = False):
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.view_init(45,0)
+    ax.view_init(90,0)
     for obj in objects_array:
         if isinstance(obj, Body):
             vertex_array = obj.get_vertex_position()
