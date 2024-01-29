@@ -23,60 +23,178 @@ class Particle:
         self.inertia_tensor_original = self.inertia_tensor
         self.rotational_velocity = np.array([0,0,0])
 
-    def get_inertia_tensor_inverse(self):
+    def get_inertia_tensor_inverse(self) -> np.array:
+        """Getter method. Gets inverse inertia tensor
+
+        Args:
+            None
+
+        Returns:
+            np.ndarray
+
+        """
         return self.inertia_tensor_inverse
 
-    def get_inertia_tensor(self):
+    def get_inertia_tensor(self) -> np.array:
+        """Getter method. Gets inertia tensor
+
+        Args:
+            None
+
+        Returns:
+            np.ndarray
+
+        """
         return self.inertia_tensor
-    def set_rotation_velocity(self, rotation):
+
+    def set_rotation_velocity(self, rotation) -> None:
+        """Setter method. Sets new velocity of rotation
+
+        Args:
+            rotation : np.array; new angular rotation (angular velocity).
+
+        Returns:
+            None
+        """
         self.rotational_velocity = rotation
 
-    def get_rotation_velocity(self):
+    def get_rotation_velocity(self) -> np.array:
+        """Getter method. Gets angular velocity of body.
+
+        Args:
+            None
+
+        Returns:
+            np.array
+        """
         return self.rotational_velocity
 
-    def get_external_force(self):
+    def get_external_force(self) -> np.array:
         return self.external_force_interaction
 
-    def get_mass(self):
+    def get_mass(self) -> float:
+        """Getter method. Gets inertial mass of body
+
+        Args:
+            None
+
+        Returns:
+            float
+
+        """
         return self.mass
 
-    def get_position(self):
+    def get_position(self) -> np.array:
+        """Getter method. Gets center position of body.
+
+        Args:
+            None
+
+        Returns:
+            np.array
+        """
         return self.position
 
-    def get_velocity(self):
+    def get_velocity(self) -> np.array:
+        """Getter method. Gets linear velocity of body center.
+
+        Args:
+            None
+
+        Returns:
+            np.array
+        """
         return self.velocity
 
-    def get_state(self):
+    def get_state(self) -> bool:
+        """Getter method. Truth state of body. Attribute to be
+        used by other classes.
+
+        Args:
+            None
+        Returns:
+            bool
+        """
         return self.remove
 
-    def get_friction(self):
+    def get_friction(self) -> float:
+        """Getter method. Gets value of friction.
+
+        Args:
+            None
+
+        Returns:
+            float
+        """
         return self.friction
 
-    def get_momentum(self):
+    def get_momentum(self) -> np.array:
         return self.momentum
 
-    def get_size(self):
+    def get_size(self) -> float:
         return self.size_radius
 
-    def set_external_force(self, external):
+    def set_external_force(self, external) -> None:
         self.external_force_interaction = external
 
-    def set_position(self, actual_position : list or np.array):
+    def set_position(self, actual_position : list or np.array) -> None:
+        """Setter method. Sets new position of center.
+
+        Args:
+            position : np.array; new center position of body.
+
+        Returns:
+            None
+        """
         self.position = actual_position
 
-    def set_velocity(self, actual_velocity : list or np.array):
+    def set_velocity(self, actual_velocity : list or np.array) -> None:
+        """Setter method. Sets new linear velocity of center.
+
+        Args:
+            actual_velocity : np.array; new linear velocity of center.
+
+        Returns:
+            None
+        """
         self.velocity = actual_velocity
 
-    def set_state(self, actual_state : bool):
+    def set_state(self, actual_state : bool) -> None:
+        """Setter method. Truth state of body. Attribute to be
+        used by other classes.
+
+        Args:
+            state : bool
+
+        Returns:
+            None
+        """
         self.remove = actual_state
 
-    def set_momentum(self):
+    def set_momentum(self) -> None:
         self.momentum = self.mass * self.velocity
 
-    def collision_box(self):
+    def collision_box(self) -> np.ndarray:
+        """Returns hit box in global coordinates.
+
+        Args:
+            None
+
+        Returns:
+            np.ndarray
+        """
         return self.hit_box_global
 
-    def __collision_box(self):
+    def __collision_box(self) -> None:
+        """Method calculates collision box (local coordinates).
+
+        Args:
+            None
+
+        Returns:
+            None
+
+        """
         origin = self.get_position()
         max_x, max_y, max_z = origin
         min_x, min_y, min_z = origin
@@ -97,14 +215,29 @@ class Particle:
                                        [max_x, min_y, max_z]
                                             ], dtype = self._wp)
 
-    def kinetic_energy(self):
+    def kinetic_energy(self) -> float:
+        """Method calculates kinetic energy
+
+        Args:
+            None
+
+        Returns:
+            float : energy
+        """
         velocity = self.get_velocity()
         k_energy = self._wp(0.5) *self.mass * np.dot(velocity,velocity)
         rot = 0.5*np.dot(self.rotational_velocity, self.angular_momentum())
         return k_energy + rot
 
-    def angular_momentum(self):
-#        ang_rot = np.cross(self.position, self.mass*self.velocity)
+    def angular_momentum(self) -> np.array:
+        """Calculates angular momentum (global system of coordinates).
+
+        Args:
+            None
+
+        Returns:
+            np.array
+        """
         if np.linalg.norm(self.rotational_velocity)>1.e-15:
 
             rotational_velocity = np.reshape(self.rotational_velocity, (3,1))
@@ -114,10 +247,19 @@ class Particle:
             ang_rot = np.cross(self.position, self.mass*self.velocity)
         return  ang_rot
 
-    def update(self, time=0.1):
+    def update(self) -> None:
+        """Updates every element inside the class."""
         self.__collision_box()
 
-    def linear_momentum(self):
+    def linear_momentum(self) -> np.array:
+        """Calculates linear momentum (global system of coordinates).
+
+        Args:
+            None
+
+        Returns:
+            np.array
+        """
         lin_mom = self.mass * self.velocity
         return lin_mom
 
