@@ -18,6 +18,7 @@ class Space:
     vel0_coll_resp_particle = np.zeros((3,))
     __EPS = 1.e-15
     __minimum = 2.e-2
+    __minimum_edge = 2.e-1
     def __init__(self, init_time = 0.0, gravity : float = 9.88,
                  _wp = np.float64):
 
@@ -26,10 +27,19 @@ class Space:
         self.time = init_time
         self.size_shepre_space = 1.e1
         self._wp = _wp
+        self.collision_queue = {}
+
 
 
     def subscribe_objects_into_space(self, object_to_subscribe):
         self.object_subscribed = np.append(self.object_subscribed, object_to_subscribe)
+        for index, objects in enumerate(self.object_subscribed):
+            for index_2, objects_2 in enumerate(self.object_subscribed):
+                if index != index_2:
+                    key = f"{objects}{objects_2}"
+                    self.collision_queue[key] = [False,0,False,0]
+
+
 
     def unsuscribe_objects(self, object_to_unsuscribe : list or tuple or np.ndarray or object = None):
         """Function removes elements subscribed to Space instance.
@@ -99,11 +109,13 @@ class Space:
                 for first, second in array_of_obj:
                     collision_bool, face_index, vertex_index = self.point_to_face_collision(first, second)
                     if collision_bool:
+                        print("VERTEX COLLISION")
                         self.momentum_collision_heterogeneous(first, second,
                                                            face_index, vertex_index=vertex_index)
 
                     collide_edge, face_index, position_of_impact = self.edge_to_edge_collision(first, second)
                     if collide_edge:
+                        print("EDGE COLLISION")
                         self.momentum_collision_heterogeneous(first, second, face_index,
                                                                       edge_position=position_of_impact)
 
@@ -111,19 +123,17 @@ class Space:
                     if collide_edge or collision_bool: break
         return collision
 
-    def edge_to_edge_collision(self, first : Body, second : Body, quant = 20):
-        #face_ok_to_collide, _ = self.body_to_body_faces(first, second)
+    def edge_to_edge_collision(self, first : Body, second : Body):
         face_ok_to_collide = first.get_faces()
         edges_to_collide = second.get_edges()
         point_of_impact = None
         face_index = 0
         collide = False
         for index, face in enumerate(face_ok_to_collide):
-            #vertex_face = face.get_vertex_position()
             for edge in edges_to_collide:
                 edge_of_face = face.get_edges()
                 for ed in edge_of_face:
-                    collide, point_of_impact = self.__linear_system_solver(ed, edge)
+                    collide, point_of_impact = self.__linear_system_solver(ed, edge, first, second)
                     face_index = index
                     if collide: break
 
@@ -133,7 +143,10 @@ class Space:
         return collide, face_index, point_of_impact
 
 
-    def __linear_system_solver(self, side_1 : np.array, side_2: np.array) -> (bool, np.array):
+    def __linear_system_solver(self, side_1 : np.array, side_2: np.array,
+                               first : Body, second : Body) -> (bool, np.array):
+
+        key = f"{first}{second}"
         result = (False, np.zeros((3,)))
         side_1_vector = side_1[1] - side_1[0]
         side_1_norm = np.linalg.norm(side_1_vector)
@@ -141,10 +154,16 @@ class Space:
 
         side_2_vector = side_2[1] - side_2[0]
         side_2_norm = np.linalg.norm(side_2_vector)
+        side_2_versor = side_2_vector / side_2_norm
         sides_cross = np.cross(side_1_vector, side_2_vector)
         sides_cross_norm = np.linalg.norm(sides_cross)
-
-        if sides_cross_norm <= self.__EPS:
+        if sides_cross_norm <= self.__EPS*1.e3 and self.collision_queue[key][1] == 0:
+            self.collision_queue[key][0] = True
+            self.collision_queue[key][1] = sides_cross_norm
+        if self.collision_queue[key][0]:
+            if sides_cross_norm < self.collision_queue[key][1]:
+                self.collision_queue[key][1] = 0
+                self.collision_queue[key][0] = False
             #Parallel
             base_vector_1 = side_1[0]
             base_vector_2 = side_2[0]
@@ -152,7 +171,7 @@ class Space:
             Q_point = base_vector_1 + side_1_versor*proyection
             Q_point_to_base_2 = side_2[0] - Q_point
             distance = np.linalg.norm(np.cross(side_1_versor, Q_point_to_base_2))
-            if distance <= self.__minimum:
+            if distance <= self.__minimum_edge:
                 inside = False
                 for i in np.arange(2):
                     for j in np.arange(2):
@@ -161,21 +180,28 @@ class Space:
                         inside_1 = condition_1<=side_1_norm and condition_1 <=side_2_norm
                         inside_2 = condition_2<=side_1_norm and condition_2 <=side_2_norm
                         if inside_1:
-                            PoI = condition_1*side_1_norm + side_1[0]
+                            PoI = condition_1*side_1_versor + side_1[0]
                             inside = True
                             result = (inside, PoI)
                         elif inside_2:
-                            PoI = condition_2*side_1_norm + side_1[0]
+                            PoI = condition_2*side_2_versor + side_2[0]
                             inside = True
                             result = (inside, PoI)
                         if inside: break
                     if inside: break
+                pass
         else:
             P_vector = side_2[0] - side_1[0]
             numerator = np.abs(np.dot(P_vector, sides_cross))
             denominator = sides_cross_norm
             distance = numerator/denominator
-            if distance <= self.__minimum:
+            if distance <= self.__minimum_edge and self.collision_queue[key][3] == 0 :
+                self.collision_queue[key][2] = True
+                self.collision_queue[key][3] = distance
+            if self.collision_queue[key][2]:
+                if distance < self.collision_queue[key][3]:
+                    self.collision_queue[key][3] = 0
+                    self.collision_queue[key][2] = False
                 vector_to_proyect_1 = side_2[0] - side_1[0]
                 vector_to_proyect_2 = side_1[0] - side_2[0]
                 proyection_1 = np.dot(vector_to_proyect_1, side_1_vector)
@@ -183,7 +209,7 @@ class Space:
                 proyection_condition_1 = (proyection_1>0) and (proyection_1<=side_1_norm)
                 proyection_condition_2 = (proyection_2>0) and (proyection_2<=side_2_norm)
                 if proyection_condition_1 and proyection_condition_2:
-                    point_of_impact = proyection_1 * side_1_versor + 2*side_1[0]
+                    point_of_impact = proyection_1 * side_1_versor + side_1[0]
                     result = (True, point_of_impact)
         return result
 
@@ -340,11 +366,11 @@ class Space:
 
 
         impulse = numerator/denominator
+        print(impulse)
         b_new_a_rot = body_angular_rotation - I_i_r_x_n * impulse
         p_new_a_rot = particle_angular_rotation + I_i_r_x_n_2 * impulse
         p_new_velocity = particle_velocity + impulse*body_normal_face_versor/particle_mass
         b_new_velocity = body_velocity - impulse*body_normal_face_versor / body_mass
-
 
         first.set_velocity(b_new_velocity )
         first.set_rotation_velocity(b_new_a_rot)
@@ -448,17 +474,17 @@ if __name__ == '__main__':
     #file = open("data.dat", "w")
     np.random.seed(456791)
     dim = 1
-    size = 0.5e0
-    vel = np.array([.0,20,.0])
+    size = 3e0
+    vel = np.array([.0,2,.0])
     #mass_1 = 1.e-25
     #mass_2 = 6
     mass_1 = 5
-    mass_2 = 5
+    mass_2 = 10
     space_instance = Space()
 #    particles = [Particle(size,mass_1,[-.1+0,-4.1+0,0+.2],vel),
 #                 Cube(4.,mass_2,0,[0.,0.,0.],[0.,0.,0],[0.,0,0],[0, 0.,0.], False)]
-    particles = [Cube(2, mass_1, 0, [1,1,1], [0,0,0], [0.0,0.0,0], [0,0,0], False),
-                 Cilinder(size,size*8,16, mass_2, 0, [1+0.3,1-2,1+0.3], [0,0,0], vel, [0,0,0], False)]
+    particles = [Cube(2, mass_1, 0, [1,2.7,1], [0,0,0], [0.0,0.0,0], [0,0,0], False),
+                 Cube(size,mass_2, 0, [1+0.3,1-2,1+0.3], [0,0,0], vel, [3,0,3], False)]
     """
     particles = np.array([Particle(size,np.random.uniform(1,20),
                                    [np.random.uniform(-0.5,0.5),
@@ -472,7 +498,7 @@ if __name__ == '__main__':
 #    particles  = np.append(particles, [Cube(2,mass_2,0,[2,0,0],[0,0,0],[0,0,0],[0,0,0], False)])
     space_instance.subscribe_objects_into_space(particles)
     norm = np.linalg.norm(vel)
-    diff = size/(norm*500)
+    diff = size/(norm*1000)
     #diff = 0.01
     step = diff
     cond = True
@@ -500,8 +526,7 @@ if __name__ == '__main__':
             e_L = np.abs(np.linalg.norm(np.sum(angular_momentum,0))-total_L)/np.abs(total_L)*100
             total_energy = np.array([energy(obj) for obj in objects])
             e_E = 100*np.abs(total_energy_0-np.sum(total_energy))/np.abs(total_energy_0)
-            render(space_instance.get_objects_in_space(), counter, True)
-            #print([obj.get_position() for obj in objects])
+            render(space_instance.get_objects_in_space(), counter, False)
             """
             if e_p >0. or e_L>0. or e_E >0:
                 print(r"Relative error % linear momentum:", \
