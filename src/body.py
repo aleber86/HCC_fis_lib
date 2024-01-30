@@ -593,8 +593,8 @@ class Body:
             origin = self.offset_rotation_axis
 
         angular_update_direction = self.get_angular_position()
-#        if True:
-        if self.change_variable_state_angular:
+        if True:
+        #if self.change_variable_state_angular:
 
             vertex_update_position = np.apply_along_axis(self._vector_rotation, 1, self.local_vertex,
                                                          angular_update_direction, origin )

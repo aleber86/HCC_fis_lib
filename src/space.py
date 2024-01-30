@@ -14,8 +14,8 @@ class Space:
     vel0_coll_resp_body = np.zeros((6,))
     vel0_coll_resp_particle = np.zeros((3,))
     __EPS = 1.e-15
-    __minimum = 2.e-2
-    __minimum_edge = 2.e-1
+    __minimum = 5.e-4
+    __minimum_edge = 5.e-4
     def __init__(self, init_time = 0.0, gravity : float = 9.88,
                  _wp = np.float64):
 
@@ -153,7 +153,7 @@ class Space:
                                                                       edge_position=position_of_impact)
 
 
-                    if collide_edge or collision_bool: break
+#                    if collide_edge or collision_bool: break
         return collision
 
     def edge_to_edge_collision(self, first : Body, second : Body) -> tuple:
@@ -215,7 +215,7 @@ class Space:
         side_2_versor = side_2_vector / side_2_norm
         sides_cross = np.cross(side_1_vector, side_2_vector)
         sides_cross_norm = np.linalg.norm(sides_cross)
-        if sides_cross_norm <= self.__EPS*1.e3 and self.collision_queue[key][1] == 0:
+        if sides_cross_norm <= self.__EPS and self.collision_queue[key][1] == 0:
             self.collision_queue[key][0] = True
             self.collision_queue[key][1] = sides_cross_norm
         if self.collision_queue[key][0]:
@@ -432,7 +432,7 @@ class Space:
             particle_size = second.get_size()
             #body_normal_face_versor+=particle_position
             PoI_2 = particle_position - body_normal_face_versor*particle_size
-            PoI = PoI_2  + particle_position - body_position
+            PoI = PoI_2  - body_position
         elif isinstance(second, Body) and edge_position is None:
             vertex_positions_array = second.get_vertex_position()
             particle_position = vertex_positions_array[vertex_index]
@@ -589,6 +589,7 @@ class Space:
                       for sec in self.object_subscribed[index:]
                       if obj!= sec])
 
+        #np.array([obj.update() for obj in self.object_subscribed])
         total_collision = np.sum(collision)
         self.integrate(time)
         self.time += time

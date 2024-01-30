@@ -148,19 +148,31 @@ if __name__ == '__main__':
     diameter = 1
     height = 2
     faces = 20
-    cube = Cilinder(diameter,height,faces,4,0,[0,0,0], [1,1,1], [0,0,0], [0,0,0], False)
-    from object_class_module import render
-    render([cube], 0)
-    """
-    cube_volume_numeric = cube.volume_calc(500, 10)
-    cube_volume_analitic = np.pi*(diameter/2.)**2*height
-    relative_error_v = np.abs(cube_volume_numeric - cube_volume_analitic)/np.abs(cube_volume_analitic)*100
-    print(f"Cube numeric volume = {cube_volume_numeric}; Cube analitic volume = {cube_volume_analitic}")
+    cilinder = Cilinder(diameter,height,faces,4,0,[0,0,0], [1,1,1], [0,0,0], [0,0,0], False)
+    from render import render_func
+    #render([cilinder], 0)
+    array_results = np.zeros((100,3))
+    for size in np.arange(100):
+        quant = int(size*1000)
+        cilinder_volume_numeric = cilinder.volume_calc(size, 1)
+        cilinder_volume_analitic = np.pi*(diameter/2.)**2*height
+        relative_error_v = np.abs(cilinder_volume_numeric - cilinder_volume_analitic)/np.abs(cilinder_volume_analitic)*100
+        array_results[size][0] = cilinder_volume_numeric
+        array_results[size][1] = cilinder_volume_analitic
+        array_results[size][2] = relative_error_v
+        print(f"Cube numeric volume = {cilinder_volume_numeric}; Cube analitic volume = {cilinder_volume_analitic}")
+        print(f"Relative error [%] = {relative_error_v}")
+
+    with open("cilinder_volume_faces_{faces}.dat", "w") as file_output:
+        file_output.write("#\t numeric vol.\t analitic vol\t relative error\n")
+        np.savetxt(file_output, array_results)
+"""
+    print(f"Cube numeric volume = {cilinder_volume_numeric}; Cube analitic volume = {cilinder_volume_analitic}")
     print(f"Relative error [%] = {relative_error_v}")
     print()
-    cube_surface_numeric = cube.total_surface_calc(500, 10)
-    cube_surface_analitic = np.pi * diameter * height + 2*np.pi*(diameter/2.)**2
-    relative_error_s = np.abs(cube_surface_numeric - cube_surface_analitic)/np.abs(cube_surface_analitic)*100
-    print(f"Cube numeric surface = {cube_surface_numeric}; Cube analitic surface = {cube_surface_analitic}")
+    cilinder_surface_numeric = cilinder.total_surface_calc(500, 10)
+    cilinder_surface_analitic = np.pi * diameter * height + 2*np.pi*(diameter/2.)**2
+    relative_error_s = np.abs(cilinder_surface_numeric - cilinder_surface_analitic)/np.abs(cilinder_surface_analitic)*100
+    print(f"Cube numeric surface = {cilinder_surface_numeric}; Cube analitic surface = {cilinder_surface_analitic}")
     print(f"Relative error [%] = {relative_error_s}")
-    """
+"""
