@@ -83,7 +83,7 @@ def experim_2(sampling = 100, render_bool = False, record = False):
     #Set time steps and iterations
     #time_step = 1 / np.linalg.norm(velocity_2) * 1.e-3
     time_step = 1.e-4
-    time_stop = 0.5
+    time_stop = 0.2
     number_of_iter = int(time_stop/time_step)
     #Make sure all objects are tracked
     object_in_space = space_instance.get_objects_in_space()
@@ -121,12 +121,11 @@ def experim_2(sampling = 100, render_bool = False, record = False):
         """
         space_instance.update(time)
         if iteration_step%sampling == 0:
-           # string_iter_total = str(number_of_iter)
-           # string_iter = str(iteration_step)
-           # long = len(string_iter_total)-len(string_iter)
-           # save_name = long*'0'+string_iter
-           # render_func(object_in_space,f"cube_side_{save_name}" ,rec=True, proyection=(15,3))
-            print(total_energy, total_energy_0)
+            string_iter_total = str(number_of_iter)
+            string_iter = str(iteration_step)
+            long = len(string_iter_total)-len(string_iter)
+            save_name = long*'0'+string_iter
+            render_func(object_in_space,f"cube_side_{save_name}" ,rec=True, proyection=(15,3))
 
         time += time_step
     """
@@ -138,7 +137,7 @@ def experim_2(sampling = 100, render_bool = False, record = False):
 
 def main():
     #experim_1()
-    experim_2(sampling = 50)
+    experim_2(sampling = 5)
     sys.exit(0)
 
 
