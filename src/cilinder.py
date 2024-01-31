@@ -93,14 +93,14 @@ class Cilinder(Body):
                               ,dtype = Plane)
 
         #Definition of the top and bottom vertex
-        vertex_top_bottom_face = np.sqrt(self.radius**2 + self.plane_side**2)* np.array([[np.cos(deg*degrees+np.pi/4),
-                                                         np.sin(deg*degrees+np.pi/4.),
+        vertex_top_bottom_face = np.sqrt(self.radius**2 + self.plane_side**2)* np.array([[np.cos(deg*degrees),
+                                                         np.sin(deg*degrees),
                                                          0] for deg in np.arange(points_per_base)])
         #Bottom first then top faces. Uses the edges and vertex defined before
         top_bottom = np.array([Plane(2,
                                      mass,
                                      fric,
-                                     [0,0,i*self.height],[(i-1)*np.pi/2,0,0],
+                                     [0,0,i*self.height],[(i-1)*np.pi/2,0,np.pi/points_per_base],
                                      in_vel,
                                      in_rot,
                                      des,
@@ -147,32 +147,21 @@ class Cilinder(Body):
 if __name__ == '__main__':
     diameter = 1
     height = 2
-    faces = 20
-    cilinder = Cilinder(diameter,height,faces,4,0,[0,0,0], [1,1,1], [0,0,0], [0,0,0], False)
-    from render import render_func
-    #render([cilinder], 0)
-    array_results = np.zeros((100,3))
-    for size in np.arange(100):
+    faces = 150
+    array_results = np.zeros((50,4))
+    cilinder = Cilinder(diameter,height,faces,4,0,[0,0,0], [0,0,0], [0,0,0], [0,0,0], False)
+    for size in np.arange(1,51):
         quant = int(size*1000)
-        cilinder_volume_numeric = cilinder.volume_calc(size, 1)
+        cilinder_volume_numeric = cilinder.volume_calc(quant, 1)
         cilinder_volume_analitic = np.pi*(diameter/2.)**2*height
         relative_error_v = np.abs(cilinder_volume_numeric - cilinder_volume_analitic)/np.abs(cilinder_volume_analitic)*100
-        array_results[size][0] = cilinder_volume_numeric
-        array_results[size][1] = cilinder_volume_analitic
-        array_results[size][2] = relative_error_v
-        print(f"Cube numeric volume = {cilinder_volume_numeric}; Cube analitic volume = {cilinder_volume_analitic}")
+        array_results[size-1][0] = quant
+        array_results[size-1][1] = cilinder_volume_numeric
+        array_results[size-1][2] = cilinder_volume_analitic
+        array_results[size-1][3] = relative_error_v
+        print(f"Cilinder numeric volume = {cilinder_volume_numeric}; Cilinder analitic volume = {cilinder_volume_analitic}")
         print(f"Relative error [%] = {relative_error_v}")
 
-    with open("cilinder_volume_faces_{faces}.dat", "w") as file_output:
-        file_output.write("#\t numeric vol.\t analitic vol\t relative error\n")
+    with open(f"cilinder_surface_faces_volume_{faces}.dat", "w") as file_output:
+        file_output.write("#num. of faces\t numeric vol.\t analitic vol\t relative error\n")
         np.savetxt(file_output, array_results)
-"""
-    print(f"Cube numeric volume = {cilinder_volume_numeric}; Cube analitic volume = {cilinder_volume_analitic}")
-    print(f"Relative error [%] = {relative_error_v}")
-    print()
-    cilinder_surface_numeric = cilinder.total_surface_calc(500, 10)
-    cilinder_surface_analitic = np.pi * diameter * height + 2*np.pi*(diameter/2.)**2
-    relative_error_s = np.abs(cilinder_surface_numeric - cilinder_surface_analitic)/np.abs(cilinder_surface_analitic)*100
-    print(f"Cube numeric surface = {cilinder_surface_numeric}; Cube analitic surface = {cilinder_surface_analitic}")
-    print(f"Relative error [%] = {relative_error_s}")
-"""

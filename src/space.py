@@ -13,18 +13,19 @@ class Space:
     """
     vel0_coll_resp_body = np.zeros((6,))
     vel0_coll_resp_particle = np.zeros((3,))
-    __EPS = 1.e-15
-    __minimum = 5.e-4
-    __minimum_edge = 5.e-4
+    __EPS = 1.e-13
+    __minimum = 7.e-2
+    __minimum_edge = 7.e-2
     def __init__(self, init_time = 0.0, gravity : float = 9.88,
-                 _wp = np.float64):
+                 _wp = np.float64, box_lim = False):
 
         self.gravity = _wp(gravity)
         self.object_subscribed = np.array([])
         self.time = init_time
-        self.size_shepre_space = 1.e1
+        self.size_shepre_space = 5.e0
         self._wp = _wp
         self.collision_queue = {}
+        self.box_limit_flag = box_lim
 
 
 
@@ -78,11 +79,11 @@ class Space:
         for object_x in self.object_subscribed:
             object_x_position = object_x.get_position()
             radius = np.sqrt(np.dot(object_x_position, object_x_position))
-            if radius >= self.size_shepre_space:
+            if radius > self.size_shepre_space:
                 vel = object_x.get_velocity()
                 object_x.set_velocity(vel)
-                new_pos = object_x_position / radius * self.size_shepre_space *0.999999
-                object_x.set_position(new_pos)
+                new_pos = object_x_position / radius * self.size_shepre_space
+                object_x.set_position(-new_pos)
 
     def __str__(self):
         """Prints every attribute of Space class"""
@@ -237,11 +238,11 @@ class Space:
                         condition_2 = np.linalg.norm(side_1[j] - side_2[j])
                         inside_1 = condition_1<=side_1_norm and condition_1 <=side_2_norm
                         inside_2 = condition_2<=side_1_norm and condition_2 <=side_2_norm
-                        if inside_1:
-                            PoI = condition_1*side_1_versor + side_1[0]
-                            inside = True
-                            result = (inside, PoI)
-                        elif inside_2:
+                        if inside_1 and inside_2:
+                            #PoI = condition_1*side_1_versor + side_1[0]
+                            #inside = True
+                            #result = (inside, PoI)
+                        #elif inside_2:
                             PoI = condition_2*side_2_versor + side_2[0]
                             inside = True
                             result = (inside, PoI)
@@ -593,6 +594,7 @@ class Space:
         total_collision = np.sum(collision)
         self.integrate(time)
         self.time += time
+        if self.box_limit_flag : self.box_limit()
         np.array([obj.update() for obj in self.object_subscribed])
 
         return total_collision
