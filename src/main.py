@@ -103,40 +103,34 @@ def experim_2(sampling = 100, render_bool = False, record = False):
         l_momentum = np.array([obj.linear_momentum() for obj in object_in_space])
         a_momentum = np.array([obj.angular_momentum() for obj in object_in_space])
         energy = np.array([obj.kinetic_energy() for obj in object_in_space])
-        """
         array_to_save[iteration_step,0] = time
         array_to_save[iteration_step,1:4] = l_momentum[0]
         array_to_save[iteration_step,4:7] = l_momentum[1]
         array_to_save[iteration_step,7:10] = a_momentum[0]
         array_to_save[iteration_step,10:13] = a_momentum[1]
         array_to_save[iteration_step,13:15] = energy
-        """
         total_l_m = np.sum(l_momentum, 0)
         total_a_m = np.sum(a_momentum, 0)
         total_energy = np.sum(energy)
-        """
         array_to_save[iteration_step,15:18] = total_l_m
         array_to_save[iteration_step,18:21] = total_a_m
         array_to_save[iteration_step,-1] = total_energy
-        """
         space_instance.update(time)
-        if iteration_step%sampling == 0:
+        if iteration_step%sampling == 0 and render_bool:
             string_iter_total = str(number_of_iter)
             string_iter = str(iteration_step)
             long = len(string_iter_total)-len(string_iter)
             save_name = long*'0'+string_iter
-            render_func(object_in_space,f"cube_side_{save_name}" ,rec=True, proyection=(15,3))
+            render_func(object_in_space,f"cube_side_{save_name}" ,rec=record, proyection=(15,3))
 
         time += time_step
-    """
     with open("3D_sim.dat", "w") as file:
         np.savetxt(file, array_to_save)
-    """
 
 
 
 def main():
-    #experim_1()
+    experim_1()
     experim_2(sampling = 5)
     sys.exit(0)
 

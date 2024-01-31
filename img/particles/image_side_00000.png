@@ -1,0 +1,16 @@
+import os
+
+directory = os.listdir()
+
+img_first = "image_side_"
+img_last = ".png"
+for name in directory:
+    index_first = name.find(img_first)
+    index_last = name.find(img_last)
+    if isinstance(index_last, int) and isinstance(index_last, int):
+        number = name[index_first+len(img_first):-len(img_last)]
+        if len(number)<5:
+            asterics = 5-len(number)
+            new_number = asterics*'0'+number
+            new_name = img_first+new_number+img_last
+            os.rename(name, new_name)
